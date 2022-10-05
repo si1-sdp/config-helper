@@ -13,7 +13,7 @@
   ],
   "keywords" : [ "configuration", "config" ],
   "require" : {
-    "php" : ">=7.4",
+    "php" : ">=8.0",
     "composer/composer" : "~2.1",
     "consolidation/config": ">2",
     "symfony/config" : "^6",
