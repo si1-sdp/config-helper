@@ -1,0 +1,10 @@
+parameters:
+  level: 9
+  tmpDir: ./tests/tmp
+  paths:
+    - src
+    - tests/phpunit/src
+  ignoreErrors:
+    -
+      message: '#Call to an undefined method .*(children|addDefaultsIfNotSet|arrayPrototype)#'
+      path: tests/phpunit/src/TestSchema.php
