@@ -27,9 +27,8 @@ class ConfigurationHelperTest extends TestCase
     public function testConstructor(): void
     {
         $conf = new ConfigHelper(new TestSchema());
-        $this->expectOutputString(TestSchema::DUMPED_SCHEMA);
         $this->assertInstanceOf(ConfigHelper::class, $conf);
-        $conf->dumpSchema();
+        $this->assertEquals(TestSchema::DUMPED_SCHEMA, $conf->dumpSchema());
     }
     /**
      * test addFile method
@@ -41,11 +40,10 @@ class ConfigurationHelperTest extends TestCase
     {
         $file = __DIR__."/../data/testConfig.yaml";
         $content = str_replace("---\n", '', "".file_get_contents($file));
-        $this->expectOutputString($content);
         $conf = new ConfigHelper(new TestSchema());
         $conf->addFile($file);
         $this->assertTrue($conf->hasContext($file));
-        $conf->dumpConfig();
+        $this->assertEquals($content, $conf->dumpConfig());
     }
     /**
      * test addArray method
@@ -58,14 +56,13 @@ class ConfigurationHelperTest extends TestCase
     {
         $file = __DIR__."/../data/testConfig.yaml";
         $content = str_replace("---\n", '', ''.file_get_contents($file));
-        $this->expectOutputString($content);
         $data['true_or_false']    = true;
         $data['positive_number']  = 50;
         $data['this_is_a_string'] = "foo";
         $conf = new ConfigHelper(new TestSchema());
         $conf->addArray('values', $data);
         $this->assertTrue($conf->hasContext('values'));
-        $conf->dumpConfig();
+        $this->assertEquals($content, $conf->dumpConfig());
     }
    /**
      * test build method

@@ -21,8 +21,7 @@ use Symfony\Component\Config\Definition\Processor as ConfigProcessor;
 use Symfony\Component\Yaml\Yaml;
 
 /**
- * class RepoMirror
- * Yum repo mirror class
+ * class ConfigHelper
  */
 class ConfigHelper extends ConfigOverlay
 {
@@ -53,7 +52,7 @@ class ConfigHelper extends ConfigOverlay
         $this->activeContext = parent::DEFAULT_CONTEXT;
     }
     /**
-     * Undocumented function
+     * sets the configuration schema
      *
      * @param configSchema $schema
      *
@@ -209,17 +208,18 @@ class ConfigHelper extends ConfigOverlay
     /**
      * For debug purposes - dumps the schema in yaml format
      *
-     * @return void
+     * @return string
      */
     public function dumpSchema()
     {
         $dumper = new YamlReferenceDumper();
-        print $dumper->dump($this->schema);
+
+        return $dumper->dump($this->schema);
     }
     /**
      * For debug purposes - dumps the merged config
      *
-     * @return void
+     * @return string
      */
     public function dumpConfig()
     {
@@ -227,6 +227,7 @@ class ConfigHelper extends ConfigOverlay
         if (null === $conf) {
             $conf = $this->build();
         }
-        print Yaml::dump($conf->export(), 2, 4);
+
+        return Yaml::dump($conf->export(), 2, 4);
     }
 }
