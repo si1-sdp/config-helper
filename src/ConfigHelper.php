@@ -37,6 +37,12 @@ class ConfigHelper extends ConfigOverlay
     /** @var string $activeContext */
     protected $activeContext;
 
+    /** @var bool $doCheck */
+    protected $doCheck;
+
+    /** @var bool $doExpand */
+    protected $doExpand;
+
     /**
      * Constructor
      * @param configSchema $schema
@@ -48,7 +54,11 @@ class ConfigHelper extends ConfigOverlay
         parent::__construct();
         if (null !== $schema) {
             $this->setSchema($schema);
+            $this->doCheck = true;
+        } else {
+            $this->doCheck = false;
         }
+        $this->doExpand = true;
         $this->activeContext = parent::DEFAULT_CONTEXT;
     }
     /**
@@ -62,7 +72,32 @@ class ConfigHelper extends ConfigOverlay
     {
         $this->schema = $schema;
     }
+    /**
+     * sets check option
+     *
+     * @param bool $doCheck
+     *
+     * @return self
+     */
+    public function setCheckOption($doCheck)
+    {
+            $this->doCheck = $doCheck;
 
+            return $this;
+    }
+    /**
+     * sets expand option
+     *
+     * @param bool $doExpand
+     *
+     * @return self
+     */
+    public function setExpandOption($doExpand)
+    {
+            $this->doExpand = $doExpand;
+
+            return $this;
+    }
     /**
      * addFile : adds context or replace it with the contents of a yml file
      *
@@ -110,21 +145,19 @@ class ConfigHelper extends ConfigOverlay
      *  - expand ${var}
      *  - checks that config matches schema
      *
-     * @param integer $options
-     *
      * @return Config
      */
-    public function build($options = 0)
+    public function build()
     {
         $this->processedConfig = new Config();
 
-        if (0 !== ($options & self::NO_EXPANSION)) {
-            $expanded = $this->export();
-        } else {
+        if ($this->doExpand) {
             $expander = new expander();
             $expanded = $expander->expandArrayProperties($this->export());
+        } else {
+            $expanded = $this->export();
         }
-        if (0 !== ($options & self::NO_CHECK)) {
+        if (!$this->doCheck) {
             $this->processedConfig->import($expanded);
         } else {
             try {
@@ -170,6 +203,21 @@ class ConfigHelper extends ConfigOverlay
         return $this;
     }
     /**
+     * just call parent and clear cache
+     *
+     * @param string $key
+     * @param mixed  $value
+     *
+     * @return self
+     */
+    public function setDefault($key, $value)
+    {
+        parent::setDefault($key, $value);
+        $this->processedConfig = null;
+
+        return $this;
+    }
+    /**
      * set a key value in the given context
      *
      * @param string $context
@@ -206,6 +254,19 @@ class ConfigHelper extends ConfigOverlay
         return $conf->get($key, $defaultFallback);
     }
     /**
+     * gets the raw value
+     * - without check (i.e. without defaultValue)
+     * - not expanded
+     *
+     * @param string $key
+     *
+     * @return mixed
+     */
+    public function getRaw($key)
+    {
+        return parent::get($key);
+    }
+    /**
      * For debug purposes - dumps the schema in yaml format
      *
      * @return string
@@ -228,6 +289,6 @@ class ConfigHelper extends ConfigOverlay
             $conf = $this->build();
         }
 
-        return Yaml::dump($conf->export(), 2, 4);
+        return Yaml::dump($conf->export(), 4, 2);
     }
 }
