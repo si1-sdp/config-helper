@@ -7,4 +7,7 @@ parameters:
   ignoreErrors:
     -
       message: '#Call to an undefined method .*(children|addDefaultsIfNotSet|arrayPrototype)#'
-      path: tests/phpunit/src/TestSchema.php
+      paths: 
+        - src/MultiSchema.php
+        - tests/phpunit/src/TestSchema.php
+        - tests/phpunit/src/TestSchema2.php

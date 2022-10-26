@@ -28,7 +28,7 @@ class ConfigHelper extends ConfigOverlay
     const NO_CHECK = 1;
     const NO_EXPANSION = 2;
 
-    /** @var configSchema $schema */
+    /** @var MultiSchema $schema */
     protected $schema;
 
     /** @var ConfigInterface|null $processedConfig */
@@ -52,6 +52,7 @@ class ConfigHelper extends ConfigOverlay
     public function __construct($schema = null)
     {
         parent::__construct();
+        $this->schema = new MultiSchema();
         if (null !== $schema) {
             $this->setSchema($schema);
             $this->doCheck = true;
@@ -70,7 +71,27 @@ class ConfigHelper extends ConfigOverlay
      */
     public function setSchema($schema)
     {
-        $this->schema = $schema;
+        if (!$this->schema->empty()) {
+            throw new \Exception("Schema allready set, use 'addSchema' for multischema functionalities");
+        }
+        $this->schema->addSchema($schema);
+        $this->doCheck = true;
+    }
+    /**
+     * adds a configuration to schem
+     *
+     * @param configSchema $schema
+     * @param bool         $insertChildren
+     *
+     * @return void
+     */
+    public function addSchema($schema, $insertChildren = false)
+    {
+        if ($this->schema->empty()) {
+            $this->setSchema($schema);
+        } else {
+            $this->schema->addSchema($schema, $insertChildren);
+        }
     }
     /**
      * sets check option

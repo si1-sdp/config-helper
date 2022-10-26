@@ -15,7 +15,7 @@ use ReflectionClass;
 
 /**
  * @uses DgfipSI1\ConfigHelper\ConfigHelper
- *
+ * @uses DgfipSI1\ConfigHelper\MultiSchema
  */
 class ConfigurationHelperTest extends TestCase
 {
@@ -27,7 +27,6 @@ class ConfigurationHelperTest extends TestCase
     public function testConstructor(): void
     {
         $conf = new ConfigHelper(new TestSchema());
-        $this->assertInstanceOf(ConfigHelper::class, $conf);
         $this->assertEquals(TestSchema::DUMPED_SCHEMA, $conf->dumpSchema());
 
         $class = new ReflectionClass(ConfigHelper::class);
@@ -35,9 +34,40 @@ class ConfigurationHelperTest extends TestCase
         $dc->setAccessible(true);
         $this->assertTrue($dc->getValue($conf));
 
+        $msg = '';
+        try {
+            $conf->setSchema(new TestSchema2());
+        } catch (\Exception $e) {
+            $msg = $e->getMessage();
+        }
+        $this->assertEquals("Schema allready set, use 'addSchema' for multischema functionalities", $msg);
+
         $conf = new ConfigHelper();
         $this->assertFalse($dc->getValue($conf));
     }
+    /**
+     * @covers DgfipSI1\ConfigHelper\ConfigHelper::addSchema
+     * @covers DgfipSI1\ConfigHelper\MultiSchema
+     */
+    public function testAddSetSchema(): void
+    {
+        $conf = new ConfigHelper();
+        $conf->addSchema(new TestSchema());
+        $expectedDump = TestSchema::DUMPED_SCHEMA;
+        $this->assertEquals($expectedDump, $conf->dumpSchema());
+
+        $conf->addSchema(new TestSchema2());
+        $expectedDump .= TestSchema2::DUMPED_SCHEMA2_WITH_ROOT;
+        $this->assertEquals($expectedDump, $conf->dumpSchema());
+
+        $lines = explode("\n", TestSchema2::DUMPED_SCHEMA2_WITH_ROOT);
+        for ($i = 1; $i < count($lines)-1; $i++) {
+            $expectedDump .= preg_replace('/^    /', '', $lines[$i]."\n");
+        }
+        $conf->addSchema(new TestSchema2(), insertChildren: true);
+        $this->assertEquals($expectedDump, $conf->dumpSchema());
+    }
+
     /**
      * test addFile method
      *
@@ -86,9 +116,9 @@ class ConfigurationHelperTest extends TestCase
         $class = new ReflectionClass('DgfipSI1\ConfigHelper\ConfigHelper');
         $processedConfig = $class->getProperty('processedConfig');
         $processedConfig->setAccessible(true);
-      //
-      // test with bad config and check, bad config and no check
-      //
+        //
+        // test with bad config and check, bad config and no check
+        //
         $data['true_or_false']    = 'foo';
         $conf = new ConfigHelper(new TestSchema());
         $conf->addArray('values', $data);
@@ -99,17 +129,17 @@ class ConfigurationHelperTest extends TestCase
             $msg = $e->getMessage();
         }
         $this->assertMatchesRegularExpression('/Expected "bool", but got "string"/', $msg);
-      // now with NO_CHECK, build should not throw exception
+        // now with NO_CHECK, build should not throw exception
         $conf->setCheckOption(false);
         $conf->build();
         /** @var \Consolidation\Config\ConfigInterface $pc */
         $pc = $processedConfig->getValue($conf);
         $this->assertEquals('foo', $pc->get('true_or_false'));
-      //
-      // test with expansion and without
-      //
+        //
+        // test with expansion and without
+        //
         $data = [ 'this_is_a_string' => 'foo${another_string}', 'another_string' => 'bar' ];
-      //$data = [ 'this_is_a_string' => '${positive_number}' ];
+        //$data = [ 'this_is_a_string' => '${positive_number}' ];
         $conf->addArray('values', $data);
         $conf->build();
         /** @var \Consolidation\Config\ConfigInterface $pc */
