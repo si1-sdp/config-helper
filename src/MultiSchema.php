@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 namespace DgfipSI1\ConfigHelper;
 
+use DgfipSI1\ConfigHelper\Exception\ConfigSchemaException;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
@@ -15,24 +16,32 @@ use Symfony\Component\Config\Definition\ConfigurationInterface;
 /**
  * class ConfigHelper
  *
- * @phpstan-type schemaEntry array{schema: ConfigurationInterface, insert: string}
  */
 class MultiSchema implements ConfigurationInterface
 {
-    /** @var array<schemaEntry> $schemas */
+    /** @var array<ConfigurationInterface> $schemas */
     protected $schemas = [];
 
     /**
      * Adds a schema node
      *
      * @param ConfigurationInterface $schema
-     * @param bool                   $insertChildren inserts children instead of root node
      *
      * @return void
      */
-    public function addSchema($schema, $insertChildren = false)
+    public function addSchema($schema)
     {
-        $this->schemas[] = [ 'schema' => $schema, 'insert' => ($insertChildren ? 'children' : 'root') ];
+        $tree = $schema->getConfigTreeBuilder();
+        if (null === $tree) {
+            return;
+        }
+        $schemaName = $tree->getRootNode()->getNode(true)->getName();
+        if ($this->empty() && '' === $schemaName) {
+            $err = "Root schema defined in '".$schema::class."' should have a name\n";
+            throw new ConfigSchemaException($err);
+        }
+
+        $this->schemas[] = $schema;
     }
     /**
      * is schema list empty ?
@@ -52,22 +61,22 @@ class MultiSchema implements ConfigurationInterface
     {
         /** @var TreeBuilder|null $configSchema */
         $configSchema = null;
+
         foreach ($this->schemas as $schema) {
-            /** @var ConfigurationInterface $newSchema */
-            $newSchema = $schema['schema'];
+            $schemaName = $schema->getConfigTreeBuilder()->getRootNode()->getNode(true)->getName();
             if (null === $configSchema) {
-                $configSchema = $newSchema->getConfigTreeBuilder();
+                $configSchema = $schema->getConfigTreeBuilder();
             } else {
                 /** @var ArrayNodeDefinition $childNode */
-                $childNode = $newSchema->getConfigTreeBuilder()->getRootNode();
+                $childNode = $schema->getConfigTreeBuilder()->getRootNode();
                 $insertAt = $configSchema->getRootNode()->children();
-                if ('root' === $schema['insert']) {
-                    $insertAt->append($childNode)->end();
-                } else {
+                if ('' === $schemaName) {
                     /** var node */
                     foreach ($childNode->getChildNodeDefinitions() as $definition) {
                         $insertAt->append($definition)->end();
                     }
+                } else {
+                    $insertAt->append($childNode)->end();
                 }
             }
         }

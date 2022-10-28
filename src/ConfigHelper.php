@@ -12,6 +12,8 @@ use Consolidation\Config\Config;
 use Consolidation\Config\ConfigInterface;
 use Consolidation\Config\Util\ConfigOverlay;
 use Consolidation\Config\Loader\YamlConfigLoader;
+use DgfipSI1\ConfigHelper\Exception\ConfigurationException;
+use DgfipSI1\ConfigHelper\Exception\RuntimeException;
 use DgfipSI1\ConfigHelper\Loader\ArrayLoader;
 use Grasmash\Expander\Expander;
 use Symfony\Component\Config\Definition\ConfigurationInterface as configSchema;
@@ -81,16 +83,15 @@ class ConfigHelper extends ConfigOverlay
      * adds a configuration to schem
      *
      * @param configSchema $schema
-     * @param bool         $insertChildren
      *
      * @return void
      */
-    public function addSchema($schema, $insertChildren = false)
+    public function addSchema($schema)
     {
         if ($this->schema->empty()) {
             $this->setSchema($schema);
         } else {
-            $this->schema->addSchema($schema, $insertChildren);
+            $this->schema->addSchema($schema);
         }
     }
     /**
@@ -185,10 +186,11 @@ class ConfigHelper extends ConfigOverlay
                 $processor = new ConfigProcessor();
                 $this->processedConfig->import($processor->processConfiguration($this->schema, [ $expanded ]));
             } catch (InvalidConfigurationException $e) {
-                //print "===============================================================\n";
-                //print_r($expanded);
-                //print "===============================================================\n";
-                throw new \Exception($e->getMessage());
+                $message = "================== CONFIG =====================================\n";
+                $message .= $this->dumpRawConfig();
+                $message .= "===============================================================\n";
+                $message .= $e->getMessage();
+                throw new RuntimeException($message);
             }
         }
 
@@ -311,5 +313,14 @@ class ConfigHelper extends ConfigOverlay
         }
 
         return Yaml::dump($conf->export(), 4, 2);
+    }
+    /**
+     * For debug purposes - dumps the merged config
+     *
+     * @return string
+     */
+    public function dumpRawConfig()
+    {
+        return Yaml::dump($this->export(), 4, 2);
     }
 }

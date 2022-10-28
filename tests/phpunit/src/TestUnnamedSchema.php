@@ -14,17 +14,16 @@ use Symfony\Component\Config\Definition\ConfigurationInterface;
 /**
  * Test configuration schema
  */
-class TestSchema2 implements ConfigurationInterface
+class TestUnnamedSchema implements ConfigurationInterface
 {
     public const DUMP =
-    '    branch2:
+    '
+    # yeat another boolean.
+    boolean:              false
 
-        # yeat another boolean.
-        boolean:              false
-
-        # A negative number.
-        negative_number:      -10
-        yet_another_string:   ~
+    # A negative number.
+    negative_number:      -10
+    yet_another_string:   ~
 ';
 
     /**
@@ -34,7 +33,7 @@ class TestSchema2 implements ConfigurationInterface
      */
     public function getConfigTreeBuilder()
     {
-        $treeBuilder = new TreeBuilder('branch2');
+        $treeBuilder = new TreeBuilder('');
         $treeBuilder->getRootNode()->children()
                 ->booleanNode('boolean')->defaultValue(false)
                     ->info("yeat another boolean.")->end()

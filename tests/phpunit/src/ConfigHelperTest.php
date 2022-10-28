@@ -27,7 +27,7 @@ class ConfigurationHelperTest extends TestCase
     public function testConstructor(): void
     {
         $conf = new ConfigHelper(new TestSchema());
-        $this->assertEquals(TestSchema::DUMPED_SCHEMA, $conf->dumpSchema());
+        $this->assertEquals(TestSchema::DUMP, $conf->dumpSchema());
 
         $class = new ReflectionClass(ConfigHelper::class);
         $dc = $class->getProperty('doCheck');
@@ -52,19 +52,25 @@ class ConfigurationHelperTest extends TestCase
     public function testAddSetSchema(): void
     {
         $conf = new ConfigHelper();
+        $msg = '';
+        try {
+            $conf->addSchema(new TestUnnamedSchema());
+        } catch (\Exception $e) {
+            $msg = $e->getMessage();
+        }
+        $this->assertMatchesRegularExpression('/Root schema defined in .* should have a name/', $msg);
+
+        $conf = new ConfigHelper();
         $conf->addSchema(new TestSchema());
-        $expectedDump = TestSchema::DUMPED_SCHEMA;
+        $expectedDump = TestSchema::DUMP;
         $this->assertEquals($expectedDump, $conf->dumpSchema());
 
         $conf->addSchema(new TestSchema2());
-        $expectedDump .= TestSchema2::DUMPED_SCHEMA2_WITH_ROOT;
+        $expectedDump .= TestSchema2::DUMP;
         $this->assertEquals($expectedDump, $conf->dumpSchema());
 
-        $lines = explode("\n", TestSchema2::DUMPED_SCHEMA2_WITH_ROOT);
-        for ($i = 1; $i < count($lines)-1; $i++) {
-            $expectedDump .= preg_replace('/^    /', '', $lines[$i]."\n");
-        }
-        $conf->addSchema(new TestSchema2(), insertChildren: true);
+        $conf->addSchema(new TestUnnamedSchema());
+        $expectedDump .= TestUnnamedSchema::DUMP;
         $this->assertEquals($expectedDump, $conf->dumpSchema());
     }
 
@@ -108,6 +114,8 @@ class ConfigurationHelperTest extends TestCase
      * @covers DgfipSI1\ConfigHelper\ConfigHelper::Build
      * @covers DgfipSI1\ConfigHelper\ConfigHelper::setCheckOption
      * @covers DgfipSI1\ConfigHelper\ConfigHelper::setExpandOption
+     * @covers DgfipSI1\ConfigHelper\ConfigHelper::dumpConfig
+     * @covers DgfipSI1\ConfigHelper\ConfigHelper::dumpRawConfig
      *
      * @uses DgfipSI1\ConfigHelper\Loader\ArrayLoader
      */
@@ -139,9 +147,13 @@ class ConfigurationHelperTest extends TestCase
         // test with expansion and without
         //
         $data = [ 'this_is_a_string' => 'foo${another_string}', 'another_string' => 'bar' ];
-        //$data = [ 'this_is_a_string' => '${positive_number}' ];
         $conf->addArray('values', $data);
         $conf->build();
+        // test dump and dumpRaw
+        $dump = "this_is_a_string: foobar\nanother_string: bar\n";
+        $dumpRaw = "this_is_a_string: 'foo\${another_string}'\nanother_string: bar\n";
+        $this->assertEquals($dump, $conf->dumpConfig());
+        $this->assertEquals($dumpRaw, $conf->dumpRawConfig());
         /** @var \Consolidation\Config\ConfigInterface $pc */
         $pc = $processedConfig->getValue($conf);
         $this->assertEquals('foobar', $pc->get('this_is_a_string'));

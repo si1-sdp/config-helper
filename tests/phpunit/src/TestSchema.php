@@ -16,7 +16,7 @@ use Symfony\Component\Config\Definition\ConfigurationInterface;
  */
 class TestSchema implements ConfigurationInterface
 {
-    public const DUMPED_SCHEMA =
+    public const DUMP =
     'process:
 
     # True or false.
