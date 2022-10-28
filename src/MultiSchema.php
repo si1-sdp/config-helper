@@ -31,6 +31,7 @@ class MultiSchema implements ConfigurationInterface
      */
     public function addSchema($schema)
     {
+        /** @var null|TreeBuilder $tree */
         $tree = $schema->getConfigTreeBuilder();
         if (null === $tree) {
             return;
