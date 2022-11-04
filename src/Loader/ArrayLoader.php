@@ -7,6 +7,7 @@ namespace DgfipSI1\ConfigHelper\Loader;
 
 use Consolidation\Config\Config;
 use Consolidation\Config\Loader\ConfigLoader;
+use DgfipSI1\ConfigHelper\Exception\ConfigurationException;
 
 /**
  * Load configuration files, and fill in any property values that
@@ -57,6 +58,6 @@ class ArrayLoader extends ConfigLoader
      */
     protected function unsupported($fn)
     {
-        throw new \Exception("The method '$fn' is not supported for the ArrayLoader class.");
+        throw new ConfigurationException("The method '$fn' is not supported for the ArrayLoader class.");
     }
 }
