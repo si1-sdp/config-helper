@@ -8,8 +8,5 @@ parameters:
     -
       message: '#Call to an undefined method .*(children|addDefaultsIfNotSet|arrayPrototype)#'
       paths: 
-        - src/MultiSchema.php
-        - tests/phpunit/src/TestSchema.php
-        - tests/phpunit/src/TestSchema2.php
-        - tests/phpunit/src/TestUnnamedSchema.php
+        - tests/phpunit/src/*
 

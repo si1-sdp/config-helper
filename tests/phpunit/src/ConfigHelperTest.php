@@ -9,9 +9,18 @@
 namespace DgfipSI1\ConfigHelperTests;
 
 use DgfipSI1\ConfigHelper\ConfigHelper;
+use DgfipSI1\ConfigHelper\MultiSchema;
+use DgfipSI1\ConfigHelperTests\Schemas\EmptySchema;
+use DgfipSI1\ConfigHelperTests\Schemas\Schema1;
+use DgfipSI1\ConfigHelperTests\Schemas\Schema2;
+use DgfipSI1\ConfigHelperTests\Schemas\Schema3;
+use DgfipSI1\ConfigHelperTests\Schemas\SubBranchOverwrite;
+use DgfipSI1\ConfigHelperTests\Schemas\TypeMismatch;
+use DgfipSI1\ConfigHelperTests\Schemas\UnnamedSchema;
 use DgfipSI1\ConfigHelperTests\TestSchema;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
+use Symfony\Component\Config\Definition\ConfigurationInterface;
 
 /**
  * @uses DgfipSI1\ConfigHelper\ConfigHelper
@@ -26,8 +35,8 @@ class ConfigurationHelperTest extends TestCase
      */
     public function testConstructor(): void
     {
-        $conf = new ConfigHelper(new TestSchema());
-        $this->assertEquals(TestSchema::DUMP, $conf->dumpSchema());
+        $conf = new ConfigHelper(new Schema1());
+        $this->assertEquals(Schema1::DUMP, $conf->dumpSchema());
 
         $class = new ReflectionClass(ConfigHelper::class);
         $dc = $class->getProperty('doCheck');
@@ -36,7 +45,7 @@ class ConfigurationHelperTest extends TestCase
 
         $msg = '';
         try {
-            $conf->setSchema(new TestSchema2());
+            $conf->setSchema(new Schema2());
         } catch (\Exception $e) {
             $msg = $e->getMessage();
         }
@@ -51,27 +60,71 @@ class ConfigurationHelperTest extends TestCase
      */
     public function testAddSetSchema(): void
     {
+        $configClass = new \ReflectionClass(ConfigHelper::class);
+        $schema = $configClass->getProperty('schema');
+        $schema->setAccessible(true);
+
+        $schemaClass = new \ReflectionClass(MultiSchema::class);
+        $schemas = $schemaClass->getProperty('schemas');
+        $schemas->setAccessible(true);
+
         $conf = new ConfigHelper();
+        $schemaObject = $schema->getValue($conf);
+
+        $conf->addSchema(new EmptySchema());
+        /** @var MultiSchema  $schemaObject */
+        $schemaList = $schemas->getValue($schemaObject);
+        /** @var array<ConfigurationInterface> $schemaList */
+        $this->assertEquals([], array_keys($schemaList));
+
+        $conf->addSchema(new Schema1());
+        $expectedDump = Schema1::DUMP;
+        $this->assertEquals($expectedDump, $conf->dumpSchema());
+
+        $conf->addSchema(new UnnamedSchema());
+        $expectedDump .= UnnamedSchema::DUMP;
+        //print $conf->dumpSchema();
+        $this->assertEquals($expectedDump, $conf->dumpSchema());
+
+        $conf->addSchema(new Schema2());
+        $expectedDump .= Schema2::DUMP;
+        $this->assertEquals($expectedDump, $conf->dumpSchema());
+
+        $conf->addSchema(new SubBranchOverwrite());
+        $expectedDump .= SubBranchOverwrite::DUMP;
+        $this->assertEquals($expectedDump, $conf->dumpSchema());
+
+        $conf->addSchema(new Schema3());
+        $expectedDump .= Schema3::DUMP;
+        $this->assertEquals($expectedDump, $conf->dumpSchema());
+
+        $conf->addSchema(new TypeMismatch());
         $msg = '';
         try {
-            $conf->addSchema(new TestUnnamedSchema());
+            $conf->build();
         } catch (\Exception $e) {
             $msg = $e->getMessage();
         }
-        $this->assertMatchesRegularExpression('/Root schema defined in .* should have a name/', $msg);
+        $this->assertMatchesRegularExpression('/Type mismatch, can\'t replace/', $msg);
+    }
+    /**
+     * @covers DgfipSI1\ConfigHelper\MultiSchema::debug
+     *
+     * @return void
+     */
+    public function testMultiSchemaDebug(): void
+    {
+        $schemaClass = new \ReflectionClass(MultiSchema::class);
+        $debugProp   = $schemaClass->getProperty('debug');
+        $debugProp->setAccessible(true);
+        $debugMethod = $schemaClass->getMethod('debug');
+        $debugMethod->setAccessible(true);
 
-        $conf = new ConfigHelper();
-        $conf->addSchema(new TestSchema());
-        $expectedDump = TestSchema::DUMP;
-        $this->assertEquals($expectedDump, $conf->dumpSchema());
+        $this->expectOutputString('foo');
+        $schema = new MultiSchema();
+        $debugProp->setValue($schema, true);
+        $debugMethod->invokeArgs($schema, ['foo']);
 
-        $conf->addSchema(new TestSchema2());
-        $expectedDump .= TestSchema2::DUMP;
-        $this->assertEquals($expectedDump, $conf->dumpSchema());
-
-        $conf->addSchema(new TestUnnamedSchema());
-        $expectedDump .= TestUnnamedSchema::DUMP;
-        $this->assertEquals($expectedDump, $conf->dumpSchema());
     }
 
     /**
@@ -84,7 +137,7 @@ class ConfigurationHelperTest extends TestCase
     {
         $file = __DIR__."/../data/testConfig.yaml";
         $content = str_replace("---\n", '', "".file_get_contents($file));
-        $conf = new ConfigHelper(new TestSchema());
+        $conf = new ConfigHelper(new Schema1());
         $conf->addFile($file);
         $this->assertTrue($conf->hasContext($file));
         $this->assertEquals($content, $conf->dumpConfig());
@@ -103,7 +156,7 @@ class ConfigurationHelperTest extends TestCase
         $data['true_or_false']    = true;
         $data['positive_number']  = 50;
         $data['this_is_a_string'] = "foo";
-        $conf = new ConfigHelper(new TestSchema());
+        $conf = new ConfigHelper(new Schema1());
         $conf->addArray('values', $data);
         $this->assertTrue($conf->hasContext('values'));
         $this->assertEquals($content, $conf->dumpConfig());
@@ -128,7 +181,7 @@ class ConfigurationHelperTest extends TestCase
         // test with bad config and check, bad config and no check
         //
         $data['true_or_false']    = 'foo';
-        $conf = new ConfigHelper(new TestSchema());
+        $conf = new ConfigHelper(new Schema1());
         $conf->addArray('values', $data);
         $msg = '';
         try {
@@ -173,7 +226,7 @@ class ConfigurationHelperTest extends TestCase
         $class = new ReflectionClass('DgfipSI1\ConfigHelper\ConfigHelper');
         $activeContext = $class->getProperty('activeContext');
         $activeContext->setAccessible(true);
-        $conf = new ConfigHelper(new TestSchema());
+        $conf = new ConfigHelper(new Schema1());
         $conf->setActiveContext('custom');
         $this->assertTrue($conf->hasContext('custom'));
         $this->assertEquals('custom', $activeContext->getValue($conf));
@@ -189,7 +242,7 @@ class ConfigurationHelperTest extends TestCase
      */
     public function testSetAndGet(): void
     {
-        $conf = new ConfigHelper(new TestSchema());
+        $conf = new ConfigHelper(new Schema1());
         $conf->setActiveContext('custom');
         $conf->set('this_is_a_string', 'foo${another_string}');
         $this->assertEquals('foo${another_string}', $conf->getContext('custom')->get('this_is_a_string'));
