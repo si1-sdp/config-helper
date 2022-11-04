@@ -76,25 +76,13 @@ class MultiSchema implements ConfigurationInterface
             if ('' !== $schemaName) {
                 foreach (explode('/', $schemaName) as $nodeName) {
                     $this->debug("INSERTING NODE $nodeName\n");
-                    $childNodes = $currentNode->getChildNodeDefinitions();
-                    $this->debug("PARSING SUBTREE...\n");
-                    foreach ($childNodes as $child) {
-                        if ($child instanceof ArrayNodeDefinition) {
-                            try {
-                                $node = $child->getNode();
-                            } catch (\TypeError $e) {
-                                $node = $child->getNode(true);
-                            }
-                            $this->debug("......".$node->getName()."\n");
-                            if ($nodeName === $node->getName()) {
-                                $currentNode = $child;
-                                continue 2;
-                            }
-                        }
+                    $child = $this->getChildByName($currentNode, $nodeName);
+                    if (null !== $child && $child instanceof ArrayNodeDefinition) {
+                        $currentNode = $child;
+                    } else {
+                        $this->debug("CREATE ARRAY NODE $nodeName\n");
+                        $currentNode = $currentNode->children()->arrayNode($nodeName)->addDefaultsIfNotSet();
                     }
-                    // if we are here, we didn't get searched node => create it
-                    $this->debug("CREATE ARRAY NODE $nodeName\n");
-                    $currentNode = $currentNode->children()->arrayNode($nodeName)->addDefaultsIfNotSet();
                 }
             }
             /** @var ArrayNodeDefinition $insertedNode */
@@ -116,37 +104,50 @@ class MultiSchema implements ConfigurationInterface
     private function insertNodeAt($insertedNode, $insertPoint)
     {
         $nodeName = $insertedNode->getNode(true)->getName();
-        $this->debug("Insert $nodeName children AT [".$insertPoint->getNode(true)->getPath()."]\n");
+        $this->debug("Insert [$nodeName] children AT [".$insertPoint->getNode(true)->getPath()."]\n");
         foreach ($insertedNode->getChildNodeDefinitions() as $definition) {
             // if child is an array and array key already exists, we do not want to overwrite all subtree
             // instead we insert its children at existing array level
             $nodeName = $definition->getNode(true)->getName();
             $nodeType = get_class($definition);
-            $exists = false;
-            foreach ($insertPoint->getChildNodeDefinitions() as $child) {
-                if ($nodeName === $child->getNode(true)->getName()) {
-                    $this->debug("      [$nodeName] EXISTS ALREADY\n");
-                    if (get_class($child) !== $nodeType) {
-                        $source = $definition->getNode(true)->getPath()." [".$nodeType."]";
-                        $target = $child->getNode(true)->getPath()." [".get_class($child)."]";
-                        throw new \Exception("Type mismatch, can't replace $target with $source");
-                    }
-                    if ($child instanceof ArrayNodeDefinition) {
-                        $this->debug("          IT'S AN ARRAY => INSERT UPPER\n");
-                        /** @var ArrayNodeDefinition $definition */
-                        $this->insertNodeAt($definition, $child);
-                    } else {
-                        $this->debug("          STANDARD NODE => SKIP\n");
-                    }
-                    $exists = true;
-                    break;
+            $child = $this->getChildByName($insertPoint, $nodeName);
+            if (null !== $child) {
+                $this->debug("      [$nodeName] EXISTS ALREADY\n");
+                if (get_class($child) !== $nodeType) {
+                    $source = $definition->getNode(true)->getPath()." [".$nodeType."]";
+                    $target = $child->getNode(true)->getPath()." [".get_class($child)."]";
+                    throw new ConfigSchemaException("Type mismatch, can't replace $target with $source");
                 }
-            }
-            if (!$exists) {
+                if ($child instanceof ArrayNodeDefinition) {
+                    $this->debug("          IT'S AN ARRAY => INSERT UPPER\n");
+                    /** @var ArrayNodeDefinition $definition */
+                    $this->insertNodeAt($definition, $child);
+                } else {
+                    $this->debug("          STANDARD NODE => SKIP\n");
+                }
+            } else {
                 $this->debug("      [$nodeName] DOES NOT EXISTS => INSERT INPLACE\n");
                 $insertPoint->children()->append($definition);
             }
         }
+    }
+    /**
+     * Undocumented function
+     *
+     * @param ArrayNodeDefinition $node
+     * @param string              $name
+     *
+     * @return NodeDefinition|null
+     */
+    private function getChildByName($node, $name)
+    {
+        foreach ($node->getChildNodeDefinitions() as $child) {
+            if ($name === $child->getNode(true)->getName()) {
+                return $child;
+            }
+        }
+
+        return null;
     }
     /**
      * debug

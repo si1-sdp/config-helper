@@ -124,7 +124,6 @@ class ConfigurationHelperTest extends TestCase
         $schema = new MultiSchema();
         $debugProp->setValue($schema, true);
         $debugMethod->invokeArgs($schema, ['foo']);
-
     }
 
     /**

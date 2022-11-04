@@ -12,6 +12,7 @@ use Consolidation\Config\Config;
 use Consolidation\Config\ConfigInterface;
 use Consolidation\Config\Util\ConfigOverlay;
 use Consolidation\Config\Loader\YamlConfigLoader;
+use DgfipSI1\ConfigHelper\Exception\ConfigSchemaException;
 use DgfipSI1\ConfigHelper\Exception\ConfigurationException;
 use DgfipSI1\ConfigHelper\Exception\RuntimeException;
 use DgfipSI1\ConfigHelper\Loader\ArrayLoader;
@@ -74,7 +75,7 @@ class ConfigHelper extends ConfigOverlay
     public function setSchema($schema)
     {
         if (!$this->schema->empty()) {
-            throw new \Exception("Schema allready set, use 'addSchema' for multischema functionalities");
+            throw new ConfigSchemaException("Schema allready set, use 'addSchema' for multischema functionalities");
         }
         $this->schema->addSchema($schema);
         $this->doCheck = true;
