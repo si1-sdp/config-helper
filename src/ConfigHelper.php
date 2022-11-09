@@ -13,7 +13,6 @@ use Consolidation\Config\ConfigInterface;
 use Consolidation\Config\Util\ConfigOverlay;
 use Consolidation\Config\Loader\YamlConfigLoader;
 use DgfipSI1\ConfigHelper\Exception\ConfigSchemaException;
-use DgfipSI1\ConfigHelper\Exception\ConfigurationException;
 use DgfipSI1\ConfigHelper\Exception\RuntimeException;
 use DgfipSI1\ConfigHelper\Loader\ArrayLoader;
 use Grasmash\Expander\Expander;
@@ -21,6 +20,7 @@ use Symfony\Component\Config\Definition\ConfigurationInterface as configSchema;
 use Symfony\Component\Config\Definition\Dumper\YamlReferenceDumper;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\Config\Definition\Processor as ConfigProcessor;
+use Symfony\Component\Finder\Finder;
 use Symfony\Component\Yaml\Yaml;
 
 /**
@@ -120,6 +120,53 @@ class ConfigHelper extends ConfigOverlay
             $this->doExpand = $doExpand;
 
             return $this;
+    }
+    /**
+     * addFoundFiles : 
+     * Use symfony finder to find configuration files. see https://symfony.com/doc/current/components/finder.html
+     * - $rootDirs are given as parameter of finder->in()
+     * - $pathPatterns as parameter of finder->path()
+     * - $filePatternes as parameter of finder->name()
+     *
+     * Results are sorted by full path name by default. 
+     * If sortByFilename is true, sort is strictly on base filename.
+     * 
+     * Each file is added to the ConfigOverlay with a context name of 'filename'
+     * if more than one file has same name, then context name will be postfix with "02", "03" ...
+     *
+     * @param array<string>|string $rootDirs
+     * @param array<string>|string $pathPatterns
+     * @param array<string>|string $filePatterns
+     * @param bool                 $sortByFilename
+     *
+     * @return void
+     */
+    public function addFoundFiles($rootDirs, $pathPatterns, $filePatterns, $sortByFilename = false)
+    {
+        $finder = new Finder();
+        $finder->in($rootDirs)->path($pathPatterns)->name($filePatterns);
+        if ($sortByFilename) {
+            $finder->sort(function (\SplFileInfo $a, \SplFileInfo $b) {
+                return strcmp($a->getFilename(), $b->getFilename());
+            });
+        } else {
+            $finder->sort(function (\SplFileInfo $a, \SplFileInfo $b) {
+                return strcmp($a->getRealPath(), $b->getRealPath());
+            });
+        }
+
+        foreach ($finder as $file) {
+            $filename = $file->getFilename();
+            $filename = preg_replace( '/.twig$/', '', $file->getFilename());
+            $filename = preg_replace( ['/.yml$/', '/.yaml$/'], '', $filename);
+            $context = $filename;
+            //print "Adding context : $context from file $filename\n";
+            $n = 1;
+            while ($this->hasContext($context)) {
+                $context = sprintf("%s-%02d", $filename, ++$n);
+            }
+            $this->addFile($context, $file->getPathname());
+        }
     }
     /**
      * addFile : adds context or replace it with the contents of a yml file

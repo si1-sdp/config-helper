@@ -160,6 +160,89 @@ class ConfigurationHelperTest extends TestCase
         $this->assertTrue($conf->hasContext('values'));
         $this->assertEquals($content, $conf->dumpConfig());
     }
+    /**
+     * test addFoundFiles method
+     *
+     * @covers DgfipSI1\ConfigHelper\ConfigHelper::addFoundFiles
+     */
+    public function testAddFoundFiles(): void
+    {
+        /* test data in dataRoot :
+         * config01                      number     string                  bool
+         *   00-baseConfig.yml           100        00-baseConfig.yml       -
+         *   01-testConfig.yaml            -        01-testConfig.yaml      true
+         *   03-testConfig.Yaml            3        03-testConfig.Yaml      -
+         * config02
+         *   00-baseConfig.yml           200        00-baseConfig.yml       -
+         *   02-testConfig.Yaml            2        02-testConfig.Yaml      false
+        */
+        $file = __DIR__."/../data/testConfig.yaml";
+        $content = str_replace("---\n", '', "".file_get_contents($file));
+        $conf = new ConfigHelper(new Schema1());
+        $dataRoot = __DIR__.DIRECTORY_SEPARATOR."..".DIRECTORY_SEPARATOR . 'data';
+
+        // test with all files in default order
+        $conf->addFoundFiles($dataRoot, ['config'], [ '*.yaml', '*.yml']);
+        $contexts = [ '00-baseConfig', '01-testConfig', '03-testConfig', '00-baseConfig-02', '02-testConfig'];
+        $this->assertEquals($contexts, $this->getAddedContexts($conf));
+        $this->assertEquals(false, $conf->get('true_or_false'));
+        $this->assertEquals("02-testConfig.Yaml", $conf->get('this_is_a_string'));
+        $this->assertEquals(2, $conf->get('positive_number'));
+
+        // test with all files filename order
+        $conf = new ConfigHelper(new Schema1());
+        $conf->addFoundFiles($dataRoot, ['config'], [ '*.yaml', '*.yml'], true);
+        $contexts = [ '00-baseConfig', '00-baseConfig-02', '01-testConfig', '02-testConfig', '03-testConfig'];
+        $this->assertEquals($contexts, $this->getAddedContexts($conf));
+        $this->assertEquals(false, $conf->get('true_or_false'));
+        $this->assertEquals("03-testConfig.yaml", $conf->get('this_is_a_string'));
+        $this->assertEquals(3, $conf->get('positive_number'));
+
+        // test with config01 directory only
+        $conf = new ConfigHelper(new Schema1());
+        $conf->addFoundFiles($dataRoot, ['config01'], [ '*.yaml', '*.yml']);
+        $contexts = [ '00-baseConfig', '01-testConfig', '03-testConfig'];
+        $this->assertEquals($contexts, $this->getAddedContexts($conf));
+        $this->assertEquals(true, $conf->get('true_or_false'));
+        $this->assertEquals("03-testConfig.yaml", $conf->get('this_is_a_string'));
+        $this->assertEquals(3, $conf->get('positive_number'));
+
+        // test with yaml files only
+        $conf = new ConfigHelper(new Schema1());
+        $conf->addFoundFiles($dataRoot, ['config'], [ '*.yaml'], true);
+        $contexts = [ '01-testConfig', '02-testConfig', '03-testConfig'];
+        $this->assertEquals($contexts, $this->getAddedContexts($conf));
+        $this->assertEquals(false, $conf->get('true_or_false'));
+        $this->assertEquals("03-testConfig.yaml", $conf->get('this_is_a_string'));
+        $this->assertEquals(3, $conf->get('positive_number'));
+
+        // $this->assertTrue($conf->hasContext('00-baseConfig'));
+        // $this->assertTrue($conf->hasContext('00-baseConfig02'));
+        // $this->assertTrue($conf->hasContext('01-testConfig'));
+        // $this->assertTrue($conf->hasContext('02-testConfig'));
+        //$this->assertTrue($conf->hasContext('03-testConfig'));
+        // $this->assertEquals($content, $conf->dumpConfig());
+    }
+    /**
+     * get all contextes but default ones
+     *
+     * @param ConfigHelper $conf
+     *
+     * @return void
+     */
+    public function getAddedContexts($conf) {
+        $class = new \ReflectionClass(ConfigHelper::class);
+        $ctx = $class->getProperty('contexts');
+        $ctx->setAccessible(true);
+        $contexts = array_keys($ctx->getValue($conf));
+        array_shift($contexts); // get rid of 'default'
+        array_pop($contexts);   // get rid of 'process'
+
+        return $contexts;
+    }
+
+
+
    /**
      * test build method
      *
