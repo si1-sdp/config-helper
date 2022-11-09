@@ -122,15 +122,15 @@ class ConfigHelper extends ConfigOverlay
             return $this;
     }
     /**
-     * addFoundFiles : 
+     * addFoundFiles :
      * Use symfony finder to find configuration files. see https://symfony.com/doc/current/components/finder.html
      * - $rootDirs are given as parameter of finder->in()
      * - $pathPatterns as parameter of finder->path()
      * - $filePatternes as parameter of finder->name()
      *
-     * Results are sorted by full path name by default. 
+     * Results are sorted by full path name by default.
      * If sortByFilename is true, sort is strictly on base filename.
-     * 
+     *
      * Each file is added to the ConfigOverlay with a context name of 'filename'
      * if more than one file has same name, then context name will be postfix with "02", "03" ...
      *
@@ -157,9 +157,9 @@ class ConfigHelper extends ConfigOverlay
 
         foreach ($finder as $file) {
             $filename = $file->getFilename();
-            $filename = preg_replace( '/.twig$/', '', $file->getFilename());
-            $filename = preg_replace( ['/.yml$/', '/.yaml$/'], '', $filename);
-            $context = $filename;
+            $filename = preg_replace('/.twig$/', '', "$filename");
+            $filename = preg_replace(['/.yml$/', '/.yaml$/'], '', "$filename");
+            $context = "$filename";
             //print "Adding context : $context from file $filename\n";
             $n = 1;
             while ($this->hasContext($context)) {

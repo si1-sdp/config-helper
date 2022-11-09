@@ -179,7 +179,7 @@ class ConfigurationHelperTest extends TestCase
         $file = __DIR__."/../data/testConfig.yaml";
         $content = str_replace("---\n", '', "".file_get_contents($file));
         $conf = new ConfigHelper(new Schema1());
-        $dataRoot = __DIR__.DIRECTORY_SEPARATOR."..".DIRECTORY_SEPARATOR . 'data';
+        $dataRoot = __DIR__.DIRECTORY_SEPARATOR."..".DIRECTORY_SEPARATOR.'data';
 
         // test with all files in default order
         $conf->addFoundFiles($dataRoot, ['config'], [ '*.yaml', '*.yml']);
@@ -228,17 +228,20 @@ class ConfigurationHelperTest extends TestCase
      *
      * @param ConfigHelper $conf
      *
-     * @return void
+     * @return array<string>
      */
-    public function getAddedContexts($conf) {
+    public function getAddedContexts($conf)
+    {
         $class = new \ReflectionClass(ConfigHelper::class);
         $ctx = $class->getProperty('contexts');
         $ctx->setAccessible(true);
-        $contexts = array_keys($ctx->getValue($conf));
-        array_shift($contexts); // get rid of 'default'
-        array_pop($contexts);   // get rid of 'process'
+        /** @var array<string,mixed> $contexts */
+        $contexts = $ctx->getValue($conf);
+        $contextsNames = array_keys($contexts);
+        array_shift($contextsNames); // get rid of 'default'
+        array_pop($contextsNames);   // get rid of 'process'
 
-        return $contexts;
+        return $contextsNames;
     }
 
 
