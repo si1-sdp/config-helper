@@ -186,7 +186,7 @@ class ConfigurationHelperTest extends TestCase
         $contexts = [ '00-baseConfig', '01-testConfig', '03-testConfig', '00-baseConfig-02', '02-testConfig'];
         $this->assertEquals($contexts, $this->getAddedContexts($conf));
         $this->assertEquals(false, $conf->get('true_or_false'));
-        $this->assertEquals("02-testConfig.Yaml", $conf->get('this_is_a_string'));
+        $this->assertEquals("02-testConfig.yaml", $conf->get('this_is_a_string'));
         $this->assertEquals(2, $conf->get('positive_number'));
 
         // test with all files filename order
@@ -215,6 +215,15 @@ class ConfigurationHelperTest extends TestCase
         $this->assertEquals(false, $conf->get('true_or_false'));
         $this->assertEquals("03-testConfig.yaml", $conf->get('this_is_a_string'));
         $this->assertEquals(3, $conf->get('positive_number'));
+
+        // test without file or path filters
+        $conf = new ConfigHelper(new Schema1());
+        $conf->addFoundFiles($dataRoot.DIRECTORY_SEPARATOR.'tests');
+        $contexts = [ '00-baseConfig', '01-testConfig', '03-testConfig', '00-baseConfig-02', '02-testConfig'];
+        $this->assertEquals($contexts, $this->getAddedContexts($conf));
+        $this->assertEquals(false, $conf->get('true_or_false'));
+        $this->assertEquals("02-testConfig.yaml", $conf->get('this_is_a_string'));
+        $this->assertEquals(2, $conf->get('positive_number'));
 
         // $this->assertTrue($conf->hasContext('00-baseConfig'));
         // $this->assertTrue($conf->hasContext('00-baseConfig02'));

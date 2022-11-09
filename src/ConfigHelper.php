@@ -134,17 +134,24 @@ class ConfigHelper extends ConfigOverlay
      * Each file is added to the ConfigOverlay with a context name of 'filename'
      * if more than one file has same name, then context name will be postfix with "02", "03" ...
      *
-     * @param array<string>|string $rootDirs
-     * @param array<string>|string $pathPatterns
-     * @param array<string>|string $filePatterns
-     * @param bool                 $sortByFilename
+     * @param array<string>|string      $rootDirs
+     * @param array<string>|string|null $pathPatterns
+     * @param array<string>|string|null $filePatterns
+     * @param bool                      $sortByFilename
      *
      * @return void
      */
-    public function addFoundFiles($rootDirs, $pathPatterns, $filePatterns, $sortByFilename = false)
+    public function addFoundFiles($rootDirs, $pathPatterns = null, $filePatterns = null, $sortByFilename = false)
     {
         $finder = new Finder();
-        $finder->in($rootDirs)->path($pathPatterns)->name($filePatterns);
+        $finder->in($rootDirs);
+        if (null !== $pathPatterns) {
+            $finder->path($pathPatterns);
+        }
+        if (null === $filePatterns) {
+            $filePatterns = [ '*.yml', '*.yaml' ];
+        }
+        $finder->name($filePatterns);
         if ($sortByFilename) {
             $finder->sort(function (\SplFileInfo $a, \SplFileInfo $b) {
                 return strcmp($a->getFilename(), $b->getFilename());
@@ -154,7 +161,7 @@ class ConfigHelper extends ConfigOverlay
                 return strcmp($a->getRealPath(), $b->getRealPath());
             });
         }
-
+        //print "=============================================================\n";
         foreach ($finder as $file) {
             $filename = $file->getFilename();
             $filename = preg_replace('/.twig$/', '', "$filename");
