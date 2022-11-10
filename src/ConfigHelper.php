@@ -16,6 +16,7 @@ use DgfipSI1\ConfigHelper\Exception\ConfigSchemaException;
 use DgfipSI1\ConfigHelper\Exception\RuntimeException;
 use DgfipSI1\ConfigHelper\Loader\ArrayLoader;
 use Grasmash\Expander\Expander;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Config\Definition\ConfigurationInterface as configSchema;
 use Symfony\Component\Config\Definition\Dumper\YamlReferenceDumper;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
@@ -31,6 +32,7 @@ class ConfigHelper extends ConfigOverlay
     const NO_CHECK = 1;
     const NO_EXPANSION = 2;
 
+
     /** @var MultiSchema $schema */
     protected $schema;
 
@@ -45,6 +47,12 @@ class ConfigHelper extends ConfigOverlay
 
     /** @var bool $doExpand */
     protected $doExpand;
+
+    /** @var LoggerInterface|null $logger */
+    protected $logger;
+
+    /** @var bool $debug */
+    protected $debug = false;
 
     /**
      * Constructor
@@ -64,6 +72,17 @@ class ConfigHelper extends ConfigOverlay
         }
         $this->doExpand = true;
         $this->activeContext = parent::DEFAULT_CONTEXT;
+    }
+    /**
+     * sets the logger
+     *
+     * @param LoggerInterface $logger
+     *
+     * @return void
+     */
+    public function setLogger($logger)
+    {
+        $this->logger = $logger;
     }
     /**
      * sets the configuration schema
@@ -122,7 +141,7 @@ class ConfigHelper extends ConfigOverlay
             return $this;
     }
     /**
-     * addFoundFiles :
+     * findConfigFiles :
      * Use symfony finder to find configuration files. see https://symfony.com/doc/current/components/finder.html
      * - $rootDirs are given as parameter of finder->in()
      * - $pathPatterns as parameter of finder->path()
@@ -135,24 +154,30 @@ class ConfigHelper extends ConfigOverlay
      * if more than one file has same name, then context name will be postfix with "02", "03" ...
      *
      * @param array<string>|string      $rootDirs
-     * @param array<string>|string|null $pathPatterns
-     * @param array<string>|string|null $filePatterns
-     * @param bool                      $sortByFilename
+     * @param array<string>|string|null $paths      path patterns
+     * @param array<string>|string|null $names      file name patterns
+     * @param bool                      $sortByName
+     * @param int                       $depth      recurse depth. 0 = norecurse, -1 = no limit
      *
      * @return void
      */
-    public function addFoundFiles($rootDirs, $pathPatterns = null, $filePatterns = null, $sortByFilename = false)
+    public function findConfigFiles($rootDirs, $paths = null, $names = null, $sortByName = false, $depth = -1)
     {
         $finder = new Finder();
         $finder->in($rootDirs);
-        if (null !== $pathPatterns) {
-            $finder->path($pathPatterns);
+        if (null !== $paths) {
+            $finder->path($paths);
         }
-        if (null === $filePatterns) {
-            $filePatterns = [ '*.yml', '*.yaml' ];
+        if (null === $names) {
+            $names = [ '*.yml', '*.yaml' ];
         }
-        $finder->name($filePatterns);
-        if ($sortByFilename) {
+        $finder->name($names);
+        if (0 === $depth) {
+            $finder->depth('== 0');
+        } elseif ($depth > 0) {
+            $finder->depth("<= $depth");
+        }
+        if ($sortByName) {
             $finder->sort(function (\SplFileInfo $a, \SplFileInfo $b) {
                 return strcmp($a->getFilename(), $b->getFilename());
             });
@@ -161,13 +186,12 @@ class ConfigHelper extends ConfigOverlay
                 return strcmp($a->getRealPath(), $b->getRealPath());
             });
         }
-        //print "=============================================================\n";
         foreach ($finder as $file) {
             $filename = $file->getFilename();
             $filename = preg_replace('/.twig$/', '', "$filename");
             $filename = preg_replace(['/.yml$/', '/.yaml$/'], '', "$filename");
             $context = "$filename";
-            //print "Adding context : $context from file $filename\n";
+            $this->debug("Adding context : $context from file ".$file->getPathname(), ['name' => 'findConfigFiles']);
             $n = 1;
             while ($this->hasContext($context)) {
                 $context = sprintf("%s-%02d", $filename, ++$n);
@@ -377,5 +401,23 @@ class ConfigHelper extends ConfigOverlay
     public function dumpRawConfig()
     {
         return Yaml::dump($this->export(), 4, 2);
+    }
+    /**
+     * Debugging trace
+     *
+     * @param string               $message
+     * @param array<string,string> $context
+     *
+     * @return void
+     */
+    protected function debug($message, $context = [])
+    {
+        if (null === $this->logger) {
+            if ($this->debug) {
+                print "DEBUG : $message\n";
+            }
+        } else {
+            $this->logger->debug($message, $context);
+        }
     }
 }

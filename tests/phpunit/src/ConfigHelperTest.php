@@ -18,6 +18,8 @@ use DgfipSI1\ConfigHelperTests\Schemas\SubBranchOverwrite;
 use DgfipSI1\ConfigHelperTests\Schemas\TypeMismatch;
 use DgfipSI1\ConfigHelperTests\Schemas\UnnamedSchema;
 use DgfipSI1\ConfigHelperTests\TestSchema;
+use DgfipSI1\testLogger\LogTestCase;
+use DgfipSI1\testLogger\TestLogger;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
@@ -26,7 +28,7 @@ use Symfony\Component\Config\Definition\ConfigurationInterface;
  * @uses DgfipSI1\ConfigHelper\ConfigHelper
  * @uses DgfipSI1\ConfigHelper\MultiSchema
  */
-class ConfigurationHelperTest extends TestCase
+class ConfigurationHelperTest extends LogTestCase
 {
    /**
      * @covers DgfipSI1\ConfigHelper\ConfigHelper::__construct
@@ -163,9 +165,9 @@ class ConfigurationHelperTest extends TestCase
     /**
      * test addFoundFiles method
      *
-     * @covers DgfipSI1\ConfigHelper\ConfigHelper::addFoundFiles
+     * @covers DgfipSI1\ConfigHelper\ConfigHelper::findConfigFiles
      */
-    public function testAddFoundFiles(): void
+    public function testFindConfigFiles(): void
     {
         /* test data in dataRoot :
          * config01                      number     string                  bool
@@ -182,7 +184,7 @@ class ConfigurationHelperTest extends TestCase
         $dataRoot = __DIR__.DIRECTORY_SEPARATOR."..".DIRECTORY_SEPARATOR.'data';
 
         // test with all files in default order
-        $conf->addFoundFiles($dataRoot, ['config'], [ '*.yaml', '*.yml']);
+        $conf->findConfigFiles($dataRoot, ['config'], [ '*.yaml', '*.yml']);
         $contexts = [ '00-baseConfig', '01-testConfig', '03-testConfig', '00-baseConfig-02', '02-testConfig'];
         $this->assertEquals($contexts, $this->getAddedContexts($conf));
         $this->assertEquals(false, $conf->get('true_or_false'));
@@ -191,7 +193,7 @@ class ConfigurationHelperTest extends TestCase
 
         // test with all files filename order
         $conf = new ConfigHelper(new Schema1());
-        $conf->addFoundFiles($dataRoot, ['config'], [ '*.yaml', '*.yml'], true);
+        $conf->findConfigFiles($dataRoot, ['config'], [ '*.yaml', '*.yml'], true);
         $contexts = [ '00-baseConfig', '00-baseConfig-02', '01-testConfig', '02-testConfig', '03-testConfig'];
         $this->assertEquals($contexts, $this->getAddedContexts($conf));
         $this->assertEquals(false, $conf->get('true_or_false'));
@@ -200,7 +202,7 @@ class ConfigurationHelperTest extends TestCase
 
         // test with config01 directory only
         $conf = new ConfigHelper(new Schema1());
-        $conf->addFoundFiles($dataRoot, ['config01'], [ '*.yaml', '*.yml']);
+        $conf->findConfigFiles($dataRoot, ['config01'], [ '*.yaml', '*.yml']);
         $contexts = [ '00-baseConfig', '01-testConfig', '03-testConfig'];
         $this->assertEquals($contexts, $this->getAddedContexts($conf));
         $this->assertEquals(true, $conf->get('true_or_false'));
@@ -209,7 +211,7 @@ class ConfigurationHelperTest extends TestCase
 
         // test with yaml files only
         $conf = new ConfigHelper(new Schema1());
-        $conf->addFoundFiles($dataRoot, ['config'], [ '*.yaml'], true);
+        $conf->findConfigFiles($dataRoot, ['config'], [ '*.yaml'], true);
         $contexts = [ '01-testConfig', '02-testConfig', '03-testConfig'];
         $this->assertEquals($contexts, $this->getAddedContexts($conf));
         $this->assertEquals(false, $conf->get('true_or_false'));
@@ -218,12 +220,31 @@ class ConfigurationHelperTest extends TestCase
 
         // test without file or path filters
         $conf = new ConfigHelper(new Schema1());
-        $conf->addFoundFiles($dataRoot.DIRECTORY_SEPARATOR.'tests');
+        $conf->findConfigFiles($dataRoot.DIRECTORY_SEPARATOR.'tests');
         $contexts = [ '00-baseConfig', '01-testConfig', '03-testConfig', '00-baseConfig-02', '02-testConfig'];
         $this->assertEquals($contexts, $this->getAddedContexts($conf));
         $this->assertEquals(false, $conf->get('true_or_false'));
         $this->assertEquals("02-testConfig.yaml", $conf->get('this_is_a_string'));
         $this->assertEquals(2, $conf->get('positive_number'));
+
+        // test with no depth
+        $conf = new ConfigHelper(new Schema1());
+        $conf->findConfigFiles($dataRoot, depth: 0);
+        $contexts = [ 'testConfig'];
+        $this->assertEquals($contexts, $this->getAddedContexts($conf));
+        $this->assertEquals(true, $conf->get('true_or_false'));
+        $this->assertEquals("foo", $conf->get('this_is_a_string'));
+        $this->assertEquals(50, $conf->get('positive_number'));
+
+        // test with depth = 1
+        $conf = new ConfigHelper(new Schema1());
+        $conf->findConfigFiles($dataRoot, depth: 1);
+        $contexts = [ 'testConfig'];
+        $this->assertEquals($contexts, $this->getAddedContexts($conf));
+        $this->assertEquals(true, $conf->get('true_or_false'));
+        $this->assertEquals("foo", $conf->get('this_is_a_string'));
+        $this->assertEquals(50, $conf->get('positive_number'));
+
 
         // $this->assertTrue($conf->hasContext('00-baseConfig'));
         // $this->assertTrue($conf->hasContext('00-baseConfig02'));
@@ -352,5 +373,36 @@ class ConfigurationHelperTest extends TestCase
         $conf->contextSet('new_context', 'another_string', '_new_bar');
         $this->assertEquals('foo_new_bar', $conf->get('this_is_a_string'));
         $this->assertEquals('_new_bar', $conf->getContext('new_context')->get('another_string'));
+    }
+    /**
+     * test debugging output
+     *
+     * @covers DgfipSI1\ConfigHelper\ConfigHelper::setLogger
+     * @covers DgfipSI1\ConfigHelper\ConfigHelper::debug
+     */
+    public function testDebugging(): void
+    {
+        $class = new \ReflectionClass(ConfigHelper::class);
+        $debugProp = $class->getProperty('debug');
+        $debugProp->setAccessible(true);
+        $debugMethod = $class->getMethod('debug');
+        $debugMethod->setAccessible(true);
+
+        $conf = new ConfigHelper(new Schema1());
+
+        // debug without logger / debug = false - should do nothing
+        $debugMethod->invokeArgs($conf, ["This message should not be outputed"]);
+
+        // debug without logger / debug = true - should be outputed
+        $debugProp->setValue($conf, true);
+        $debugMethod->invokeArgs($conf, ["THIS SHOULD BE OUTPUTED"]);
+        $this->expectOutputString("DEBUG : THIS SHOULD BE OUTPUTED\n");
+
+        // debug with logger
+        $this->logger = new TestLogger();
+        $conf->setLogger($this->logger);
+        $debugMethod->invokeArgs($conf, ["This should be in log"]);
+        $this->assertDebugInLog("This should be in log");
+        $this->assertDebugLogEmpty();
     }
 }
