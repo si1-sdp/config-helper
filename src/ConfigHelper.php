@@ -27,10 +27,14 @@ use Symfony\Component\Yaml\Yaml;
 /**
  * class ConfigHelper
  */
-class ConfigHelper extends ConfigOverlay
+class ConfigHelper extends ConfigOverlay implements ConfigHelperInterface
 {
     const NO_CHECK = 1;
     const NO_EXPANSION = 2;
+
+    public const DUMP_MODE_BUILT    = 'built';
+    public const DUMP_MODE_RAW      = 'raw';
+    public const DUMP_MODE_CONTEXTS = 'contexts';
 
 
     /** @var MultiSchema $schema */
@@ -187,16 +191,7 @@ class ConfigHelper extends ConfigOverlay
             });
         }
         foreach ($finder as $file) {
-            $filename = $file->getFilename();
-            $filename = preg_replace('/.twig$/', '', "$filename");
-            $filename = preg_replace(['/.yml$/', '/.yaml$/'], '', "$filename");
-            $context = "$filename";
-            $this->debug("Adding context : $context from file ".$file->getPathname(), ['name' => 'findConfigFiles']);
-            $n = 1;
-            while ($this->hasContext($context)) {
-                $context = sprintf("%s-%02d", $filename, ++$n);
-            }
-            $this->addFile($context, $file->getPathname());
+            $this->addFile($file->getPathname());
         }
     }
     /**
@@ -211,6 +206,14 @@ class ConfigHelper extends ConfigOverlay
     {
         if (null === $filename) {
             $filename = $name;
+            $name = basename($filename, ".twig");
+            $name = basename($name, ".yaml");
+            $name = basename($name, ".yml");
+            $this->debug("Adding context : $name from file ".$filename, ['name' => 'addFile']);
+        }
+        $n = 1;
+        while ($this->hasContext($name)) {
+            $name = sprintf("%s-%02d", $name, ++$n);
         }
         $loader = new YamlConfigLoader();
         $loader->load($filename);
@@ -266,7 +269,7 @@ class ConfigHelper extends ConfigOverlay
                 $this->processedConfig->import($processor->processConfiguration($this->schema, [ $expanded ]));
             } catch (InvalidConfigurationException $e) {
                 $message = "================== CONFIG =====================================\n";
-                $message .= $this->dumpRawConfig();
+                $message .= $this->dumpConfig(self::DUMP_MODE_RAW);
                 $message .= "===============================================================\n";
                 $message .= $e->getMessage();
                 throw new RuntimeException($message);
@@ -380,27 +383,44 @@ class ConfigHelper extends ConfigOverlay
         return $dumper->dump($this->schema);
     }
     /**
-     * For debug purposes - dumps the merged config
+     * For debug purposes - dumps the config
+     *
+     * @param string $mode
      *
      * @return string
      */
-    public function dumpConfig()
+    public function dumpConfig($mode = self::DUMP_MODE_BUILT)
     {
-        $conf = $this->processedConfig;
-        if (null === $conf) {
-            $conf = $this->build();
+        $inline = 4;
+        $indent = 2;
+        $flags = Yaml::DUMP_EMPTY_ARRAY_AS_SEQUENCE|Yaml::DUMP_MULTI_LINE_LITERAL_BLOCK;
+        switch ($mode) {
+            case (self::DUMP_MODE_BUILT):
+                $conf = $this->processedConfig;
+                if (null === $conf) {
+                    $conf = $this->build();
+                }
+                $ret =  Yaml::dump($conf->export(), $inline, $indent, $flags);
+                break;
+            case (self::DUMP_MODE_RAW):
+                $ret =  Yaml::dump($this->export(), $inline, $indent, $flags);
+                break;
+            case (self::DUMP_MODE_CONTEXTS):
+                $ret = '';
+                foreach ($this->getContextNames() as $context) {
+                    $conf = $this->getContext($context);
+                    $ret .= "============================================================\n";
+                    $ret .= "         CONTEXT : $context\n";
+                    $ret .= "============================================================\n";
+                    $ret .= Yaml::dump($conf->export(), $inline, $indent, $flags);
+                    $ret .= "\n";
+                }
+                break;
+            default:
+                throw new RuntimeException(sprintf("Unknown dump mode '%s'", $mode));
         }
 
-        return Yaml::dump($conf->export(), 4, 2);
-    }
-    /**
-     * For debug purposes - dumps the merged config
-     *
-     * @return string
-     */
-    public function dumpRawConfig()
-    {
-        return Yaml::dump($this->export(), 4, 2);
+        return $ret;
     }
     /**
      * Debugging trace
@@ -419,5 +439,14 @@ class ConfigHelper extends ConfigOverlay
         } else {
             $this->logger->debug($message, $context);
         }
+    }
+    /**
+     * Gets an array of all contexts
+     *
+     * @return array<string>
+     */
+    protected function getContextNames()
+    {
+        return array_keys($this->contexts);
     }
 }

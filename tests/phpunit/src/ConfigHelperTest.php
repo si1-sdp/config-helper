@@ -9,6 +9,7 @@
 namespace DgfipSI1\ConfigHelperTests;
 
 use DgfipSI1\ConfigHelper\ConfigHelper;
+use DgfipSI1\ConfigHelper\Exception\RuntimeException;
 use DgfipSI1\ConfigHelper\MultiSchema;
 use DgfipSI1\ConfigHelperTests\Schemas\EmptySchema;
 use DgfipSI1\ConfigHelperTests\Schemas\Schema1;
@@ -27,6 +28,7 @@ use Symfony\Component\Config\Definition\ConfigurationInterface;
 /**
  * @uses DgfipSI1\ConfigHelper\ConfigHelper
  * @uses DgfipSI1\ConfigHelper\MultiSchema
+ * @uses DgfipSI1\ConfigHelper\Loader\ArrayLoader
  */
 class ConfigurationHelperTest extends LogTestCase
 {
@@ -110,25 +112,6 @@ class ConfigurationHelperTest extends LogTestCase
         $this->assertMatchesRegularExpression('/Type mismatch, can\'t replace/', $msg);
     }
     /**
-     * @covers DgfipSI1\ConfigHelper\MultiSchema::debug
-     *
-     * @return void
-     */
-    public function testMultiSchemaDebug(): void
-    {
-        $schemaClass = new \ReflectionClass(MultiSchema::class);
-        $debugProp   = $schemaClass->getProperty('debug');
-        $debugProp->setAccessible(true);
-        $debugMethod = $schemaClass->getMethod('debug');
-        $debugMethod->setAccessible(true);
-
-        $this->expectOutputString('foo');
-        $schema = new MultiSchema();
-        $debugProp->setValue($schema, true);
-        $debugMethod->invokeArgs($schema, ['foo']);
-    }
-
-    /**
      * test addFile method
      *
      * @covers DgfipSI1\ConfigHelper\ConfigHelper::addFile
@@ -140,8 +123,29 @@ class ConfigurationHelperTest extends LogTestCase
         $content = str_replace("---\n", '', "".file_get_contents($file));
         $conf = new ConfigHelper(new Schema1());
         $conf->addFile($file);
-        $this->assertTrue($conf->hasContext($file));
+        $this->assertTrue($conf->hasContext('testConfig'));
         $this->assertEquals($content, $conf->dumpConfig());
+        $banner  = "============================================================\n";
+        $banner .= "         CONTEXT : %s\n";
+        $banner .= "============================================================\n";
+        $dump = sprintf("$banner".'[]'."\n$banner", 'default', 'testConfig');
+        $dump .= str_replace("---\n", '', "".file_get_contents($file));
+        $dump .= sprintf("\n$banner".'[]'."\n", 'process');
+        $this->assertEquals($dump, $conf->dumpConfig(ConfigHelper::DUMP_MODE_CONTEXTS));
+
+        $conf->addFile($file);
+        $dump  = sprintf("$banner", 'default')."[]\n";
+        $dump .= sprintf("$banner", 'testConfig').str_replace("---\n", '', "".file_get_contents($file))."\n";
+        $dump .= sprintf("$banner", 'testConfig-02').str_replace("---\n", '', "".file_get_contents($file))."\n";
+        $dump .= sprintf("$banner", 'process')."[]\n";
+        $this->assertEquals($dump, $conf->dumpConfig(ConfigHelper::DUMP_MODE_CONTEXTS));
+        $msg = '';
+        try {
+            $conf->dumpConfig('foo');
+        } catch (RuntimeException $e) {
+            $msg = $e->getMessage();
+        }
+        $this->assertEquals("Unknown dump mode 'foo'", $msg);
     }
     /**
      * test addArray method
@@ -244,14 +248,6 @@ class ConfigurationHelperTest extends LogTestCase
         $this->assertEquals(true, $conf->get('true_or_false'));
         $this->assertEquals("foo", $conf->get('this_is_a_string'));
         $this->assertEquals(50, $conf->get('positive_number'));
-
-
-        // $this->assertTrue($conf->hasContext('00-baseConfig'));
-        // $this->assertTrue($conf->hasContext('00-baseConfig02'));
-        // $this->assertTrue($conf->hasContext('01-testConfig'));
-        // $this->assertTrue($conf->hasContext('02-testConfig'));
-        //$this->assertTrue($conf->hasContext('03-testConfig'));
-        // $this->assertEquals($content, $conf->dumpConfig());
     }
     /**
      * get all contextes but default ones
@@ -283,7 +279,6 @@ class ConfigurationHelperTest extends LogTestCase
      * @covers DgfipSI1\ConfigHelper\ConfigHelper::setCheckOption
      * @covers DgfipSI1\ConfigHelper\ConfigHelper::setExpandOption
      * @covers DgfipSI1\ConfigHelper\ConfigHelper::dumpConfig
-     * @covers DgfipSI1\ConfigHelper\ConfigHelper::dumpRawConfig
      *
      * @uses DgfipSI1\ConfigHelper\Loader\ArrayLoader
      */
@@ -321,7 +316,7 @@ class ConfigurationHelperTest extends LogTestCase
         $dump = "this_is_a_string: foobar\nanother_string: bar\n";
         $dumpRaw = "this_is_a_string: 'foo\${another_string}'\nanother_string: bar\n";
         $this->assertEquals($dump, $conf->dumpConfig());
-        $this->assertEquals($dumpRaw, $conf->dumpRawConfig());
+        $this->assertEquals($dumpRaw, $conf->dumpConfig(ConfigHelper::DUMP_MODE_RAW));
         /** @var \Consolidation\Config\ConfigInterface $pc */
         $pc = $processedConfig->getValue($conf);
         $this->assertEquals('foobar', $pc->get('this_is_a_string'));
@@ -374,6 +369,25 @@ class ConfigurationHelperTest extends LogTestCase
         $this->assertEquals('foo_new_bar', $conf->get('this_is_a_string'));
         $this->assertEquals('_new_bar', $conf->getContext('new_context')->get('another_string'));
     }
+    /**  */
+    /**
+     * test getContextNames
+     *
+     * @covers DgfipSI1\ConfigHelper\ConfigHelper::getContextNames
+     * @covers DgfipSI1\ConfigHelper\ConfigHelper::debug
+     */
+    public function testGetContextNames(): void
+    {
+        $class = new \ReflectionClass(ConfigHelper::class);
+        $method = $class->getMethod('getContextNames');
+        $method->setAccessible(true);
+
+        $conf = new ConfigHelper();
+        $conf->addArray('middle-context', []);
+        $expect = [ConfigHelper::DEFAULT_CONTEXT, 'middle-context', ConfigHelper::PROCESS_CONTEXT ];
+        $this->assertEquals($expect, $method->invoke($conf));
+    }
+    /**  */
     /**
      * test debugging output
      *
@@ -404,5 +418,23 @@ class ConfigurationHelperTest extends LogTestCase
         $debugMethod->invokeArgs($conf, ["This should be in log"]);
         $this->assertDebugInLog("This should be in log");
         $this->assertDebugLogEmpty();
+    }
+    /**
+     * @covers DgfipSI1\ConfigHelper\MultiSchema::debug
+     *
+     * @return void
+     */
+    public function testMultiSchemaDebug(): void
+    {
+        $schemaClass = new \ReflectionClass(MultiSchema::class);
+        $debugProp   = $schemaClass->getProperty('debug');
+        $debugProp->setAccessible(true);
+        $debugMethod = $schemaClass->getMethod('debug');
+        $debugMethod->setAccessible(true);
+
+        $this->expectOutputString('foo');
+        $schema = new MultiSchema();
+        $debugProp->setValue($schema, true);
+        $debugMethod->invokeArgs($schema, ['foo']);
     }
 }
