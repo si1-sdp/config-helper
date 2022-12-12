@@ -450,8 +450,6 @@ class ConfigHelper extends ConfigOverlay implements ConfigHelperInterface
         return array_keys($this->contexts);
     }
     /**
-     *
-     *
      * @param \SplFileInfo $a
      * @param \SplFileInfo $b
      *
@@ -459,15 +457,17 @@ class ConfigHelper extends ConfigOverlay implements ConfigHelperInterface
      */
     protected function cmpConfigPaths(\SplFileInfo $a, \SplFileInfo $b)
     {
+        $pharPrefix = 'phar://';
+        $pharLen = strlen($pharPrefix);
         // do not use realpath on phar files
-        if ('phar://' === substr($a->getPath(), 0, 7) && 'phar://' === substr($b->getPath(), 0, 7)) {
+        if (substr($a->getPath(), 0, $pharLen) === $pharPrefix && substr($b->getPath(), 0, $pharLen) === $pharPrefix) {
             return strcmp($a->getPathname(), $b->getPathname());
         }
-        if ('phar://' !== substr($a->getPath(), 0, 7) && 'phar://' !== substr($b->getPath(), 0, 7)) {
+        if (substr($a->getPath(), 0, $pharLen) !== $pharPrefix && substr($b->getPath(), 0, $pharLen) !== $pharPrefix) {
             return strcmp($a->getRealPath(), $b->getRealPath());
         }
         // if one configFile in phar and other is normal file, put phar first
         // this way phar config will be overriden by live config
-        return 'phar://' !== substr($a->getPath(), 0, 7) ? 1 : -1;
+        return $pharPrefix !== substr($a->getPath(), 0, $pharLen) ? 1 : -1;
     }
 }
