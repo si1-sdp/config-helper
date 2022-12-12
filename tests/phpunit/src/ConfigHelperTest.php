@@ -437,4 +437,48 @@ class ConfigurationHelperTest extends LogTestCase
         $debugProp->setValue($schema, true);
         $debugMethod->invokeArgs($schema, ['foo']);
     }
+    /**
+     * data provider for cmpConfigPaths function
+     *
+     * @return array<string,array<mixed>>
+     */
+    public function cmpConfigPathsData()
+    {
+        $schemaDir = __DIR__.DIRECTORY_SEPARATOR.'Schemas'.DIRECTORY_SEPARATOR;
+        $fileA = new \SplFileInfo($schemaDir.'Schema1.php');
+        $fileB = new \SplFileInfo($schemaDir.'Schema2.php');
+        $pharA = new \SplFileInfo('phar://'.$schemaDir.'Schema1.php');
+        $pharB = new \SplFileInfo('phar://'.$schemaDir.'Schema2.php');
+        $data['FA_FA'] = [ $fileA, $fileA,   0];
+        $data['FA_FB'] = [ $fileA, $fileB,  -1];
+        $data['FB_FA'] = [ $fileB, $fileA,   1];
+        $data['PA_PA'] = [ $pharA, $pharA,   0];
+        $data['PA_PB'] = [ $pharA, $pharB,  -1];
+        $data['PB_PA'] = [ $pharB, $pharA,   1];
+        $data['PA_FA'] = [ $pharA, $fileA,  -1];
+        $data['FA_PA'] = [ $fileA, $pharA,   1];
+
+        return $data;
+    }
+
+    /**
+     * @covers DgfipSI1\ConfigHelper\ConfigHelper::cmpConfigPaths
+     *
+     * @param \SplFileInfo $a
+     * @param \SplFileInfo $b
+     * @param int          $expected
+     *
+     * @dataProvider cmpConfigPathsData
+     *
+     * @return void
+     */
+    public function testCmpConfigPaths($a, $b, $expected): void
+    {
+        $class = new \ReflectionClass(ConfigHelper::class);
+        $method = $class->getMethod('cmpConfigPaths');
+        $method->setAccessible(true);
+        //print "\n".$a->getPathname()." <=> ".$a->getRealPath()."\n";
+        $cfg = new ConfigHelper();
+        $this->assertEquals($expected, $method->invokeArgs($cfg, [$a, $b]), $a->getPathname().'<=>'.$b->getPathname());
+    }
 }

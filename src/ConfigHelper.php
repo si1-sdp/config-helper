@@ -187,7 +187,7 @@ class ConfigHelper extends ConfigOverlay implements ConfigHelperInterface
             });
         } else {
             $finder->sort(function (\SplFileInfo $a, \SplFileInfo $b) {
-                return strcmp($a->getRealPath(), $b->getRealPath());
+                return $this->cmpConfigPaths($a, $b);
             });
         }
         foreach ($finder as $file) {
@@ -448,5 +448,26 @@ class ConfigHelper extends ConfigOverlay implements ConfigHelperInterface
     protected function getContextNames()
     {
         return array_keys($this->contexts);
+    }
+    /**
+     *
+     *
+     * @param \SplFileInfo $a
+     * @param \SplFileInfo $b
+     *
+     * @return int
+     */
+    protected function cmpConfigPaths(\SplFileInfo $a, \SplFileInfo $b)
+    {
+        // do not use realpath on phar files
+        if ('phar://' === substr($a->getPath(), 0, 7) && 'phar://' === substr($b->getPath(), 0, 7)) {
+            return strcmp($a->getPathname(), $b->getPathname());
+        }
+        if ('phar://' !== substr($a->getPath(), 0, 7) && 'phar://' !== substr($b->getPath(), 0, 7)) {
+            return strcmp($a->getRealPath(), $b->getRealPath());
+        }
+        // if one configFile in phar and other is normal file, put phar first
+        // this way phar config will be overriden by live config
+        return 'phar://' !== substr($a->getPath(), 0, 7) ? 1 : -1;
     }
 }
