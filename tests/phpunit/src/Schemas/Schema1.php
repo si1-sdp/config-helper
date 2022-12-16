@@ -28,6 +28,7 @@ class Schema1 implements ConfigurationInterface
     # A string
     this_is_a_string:     ~
     another_string:       ~
+    foo:                  ~
 ';
     /**
      * The main configuration tree
@@ -44,6 +45,7 @@ class Schema1 implements ConfigurationInterface
                     ->info("A number between 0 and 100.")->end()
                 ->scalarNode('this_is_a_string')->info("A string")->end()
                 ->scalarNode('another_string')->end()
+                ->scalarNode('foo')->end()
             ->end();
 
         return $treeBuilder;

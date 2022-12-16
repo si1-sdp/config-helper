@@ -17,9 +17,9 @@ class ArrayLoader extends ConfigLoader
 {
 
     /**
-     * @param string              $name
-     * @param array<string,mixed> $data
-     * @param bool                $expandDotedValues
+     * @param string                   $name
+     * @param array<string,mixed>|null $data
+     * @param bool                     $expandDotedValues
      *
      * @return self
      */
@@ -44,10 +44,10 @@ class ArrayLoader extends ConfigLoader
      * {@inheritdoc}
      *
      */
-    public function load($string)
+    public function load($path)
     {
         $this->unsupported(__FUNCTION__);
-        /** @phpstan-ignore-line - ignore no return statement (we have thrown an exception) */
+        /** @phpstan-ignore-line @psalm-suppress InvalidReturnType - ignore no return statement (we have thrown an exception) */
     }
     /**
      * Generic function for unsuported methods
@@ -56,7 +56,7 @@ class ArrayLoader extends ConfigLoader
      *
      * @return void
      */
-    protected function unsupported($fn)
+    private function unsupported($fn)
     {
         throw new ConfigurationException("The method '$fn' is not supported for the ArrayLoader class.");
     }

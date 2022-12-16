@@ -1,35 +1,51 @@
 {
-  "name" : "dgfip-si1/config-helper",
-  "description" : "Manage configuration.",
-  "type" : "library",
-  "license" : "GPL-3.0-or-later",
+  "name": "dgfip-si1/config-helper",
+  "description": "Manage configuration.",
+  "license": "GPL-3.0-or-later",
+  "type": "library",
+  "keywords": [
+    "configuration",
+    "config"
+  ],
   "authors": [
     {
-      "name" : "Jean-Marie Gervais"
+      "name": "Jean-Marie Gervais"
     },
     {
-      "name" : "Mikael Meulle"
+      "name": "Mikael Meulle"
     }
   ],
-  "keywords" : [ "configuration", "config" ],
-  "require" : {
-    "php" : ">=8.0",
-    "composer/composer" : "~2.1",
+  "require": {
+    "php": ">=8.0",
+    "composer/composer": "~2.1",
     "consolidation/config": ">2",
-    "symfony/config" : "^6",
-    "symfony/yaml" : "^6",
-    "grasmash/expander" : "^2"
-  },	
-  "require-dev": {
-    "phpstan/phpstan": "^1",
-    "squizlabs/php_codesniffer": "^3.6",
-    "escapestudios/symfony2-coding-standard": "^3.12",
-    "phpunit/phpunit": "^9.5, >=9.5.10",
-    "mikey179/vfsstream": "^1.6",
-    "dgfip-si1/test-logger": ">= 1.0.alpha11"
+    "grasmash/expander": "^2",
+    "symfony/config": "^6",
+    "symfony/yaml": "^6"
   },
-  "minimum-stability" : "alpha",
-  "prefer-stable" : true,
+  "require-dev": {
+    "dealerdirect/phpcodesniffer-composer-installer": "^0.7.2",
+    "dgfip-si1/test-logger": ">= 1.0.alpha11",
+    "ergebnis/composer-normalize": "^2.28",
+    "escapestudios/symfony2-coding-standard": "^3.12",
+    "infection/infection": "^0.26.6",
+    "mikey179/vfsstream": "^1.6",
+    "php-parallel-lint/php-parallel-lint": "^1.3",
+    "phpcompatibility/php-compatibility": "^9.3",
+    "phpmetrics/phpmetrics": "^2.8",
+    "phpro/grumphp-shim": "^1.13",
+    "phpstan/extension-installer": "^1.1",
+    "phpstan/phpstan": "^1",
+    "phpstan/phpstan-deprecation-rules": "^1.0",
+    "phpstan/phpstan-strict-rules": "^1.4",
+    "phpstan/phpstan-symfony": "^1.2",
+    "phpunit/phpunit": "^9.5,>=9.5.10",
+    "roave/security-advisories": "dev-latest",
+    "slevomat/coding-standard": "^8.4",
+    "squizlabs/php_codesniffer": "^3.6"
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": false,
   "autoload": {
     "psr-4": {
       "DgfipSI1\\ConfigHelper\\": "src/"
@@ -40,9 +56,43 @@
       "DgfipSI1\\ConfigHelperTests\\": "tests/phpunit/src"
     }
   },
+  "config": {
+    "allow-plugins": {
+      "infection/extension-installer": true,
+      "ergebnis/composer-normalize": true,
+      "dealerdirect/phpcodesniffer-composer-installer": true,
+      "phpro/grumphp-shim": true,
+      "phpstan/extension-installer": true
+    }
+  },
   "scripts": {
-    "phpunit": "vendor/bin/phpunit --log-junit tests/results/phpunit.xml",
+    "all": "grumphp run",
+    "c": "rm -r tests/tmp/*/* &> /dev/null || true",
+    "coverage": "firefox $(pwd)/tests/results/html-coverage/index.html",
+    "infection": "infection && firefox $(pwd)/tests/results/infection.html",
+    "lint": "parallel-lint --no-progress bin/composer-stage src tests",
+    "phpcbf": "phpcbf",
+    "phpcs": "vendor/bin/phpcs --report=junit",
+    "phpmetrics": "phpmetrics --junit=tests/results/tests-phpunit.xml --report-html=tests/results/phpmetrics src && firefox $(pwd)/tests/results/phpmetrics/index.html",
     "phpstan": "vendor/bin/phpstan analyse --no-progress --error-format=junit",
-    "phpcs": "vendor/bin/phpcs --report=junit"
+    "phpunit": "vendor/bin/phpunit --log-junit tests/results/phpunit.xml",
+    "security": "@composer update --dry-run roave/security-advisories",
+    "static": "grumphp run --testsuite=static",
+    "test": "grumphp run --testsuite=test"
+  },
+  "scripts-descriptions": {
+    "all": "Runs all automated tests and static analysis tools.",
+    "c": "Clears the script caches in the \"var\" directory.",
+    "coverage": "Opens html test coverage.",
+    "infection": "Runs PHP mutation tests.",
+    "lint": "Lints PHP files.",
+    "phpcbf": "Automatically fixes standards violations where possible.",
+    "phpcs": "Checks code for standards compliance.",
+    "phpmetrics": "Provides various metrics about PHP projects.",
+    "phpstan": "Analyzes code to find bugs.",
+    "phpunit": "Runs PHPUnit tests.",
+    "security": "Checks installed dependencies for known security vulnerabilities.",
+    "static": "Runs all static analysis tools.",
+    "test": "Runs automated tests."
   }
 }

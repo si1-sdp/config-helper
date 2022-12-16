@@ -9,6 +9,7 @@ declare(strict_types=1);
 namespace DgfipSI1\ConfigHelper;
 
 use DgfipSI1\ConfigHelper\Exception\ConfigSchemaException;
+use DgfipSI1\ConfigHelper\Exception\RuntimeException;
 use Symfony\Component\Config\Definition\ArrayNode;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\NodeDefinition;
@@ -49,12 +50,12 @@ class MultiSchema implements ConfigurationInterface
      */
     public function empty()
     {
-        return empty($this->schemas);
+        return 0 === sizeof($this->schemas);
     }
     /**
      * get global configTree
      *
-     * @return TreeBuilder|null
+     * @return TreeBuilder
      */
     public function getConfigTreeBuilder()
     {
@@ -62,6 +63,7 @@ class MultiSchema implements ConfigurationInterface
         $this->debug("=============================== START ====================================\n");
         $this->debug($e->getTraceAsString());
         $this->debug("\n");
+        /** @infection-ignore-all */
         foreach ($this->schemas as $s) {
             $this->debug("SCHEMA ".get_class($s)."\n");
         }
@@ -77,11 +79,19 @@ class MultiSchema implements ConfigurationInterface
                 foreach (explode('/', $schemaName) as $nodeName) {
                     $this->debug("INSERTING NODE $nodeName\n");
                     $child = $this->getChildByName($currentNode, $nodeName);
-                    if (null !== $child && $child instanceof ArrayNodeDefinition) {
-                        $currentNode = $child;
-                    } else {
+                    if (null === $child) {
                         $this->debug("CREATE ARRAY NODE $nodeName\n");
                         $currentNode = $currentNode->children()->arrayNode($nodeName)->addDefaultsIfNotSet();
+                    } else {
+                        if ($child instanceof ArrayNodeDefinition) {
+                            $currentNode = $child;
+                        } else {
+                            $srcPath = $child->getNode()->getPath();
+                            $tgtPath = $currentNode->getNode()->getPath();
+                            $target = "$srcPath [".preg_replace('/.*\\\\/', '', get_class($child))."]";
+                            $source = "$tgtPath/$nodeName [ArrayNodeDefinition]";
+                            throw new ConfigSchemaException("Type mismatch, can't replace $target with $source");
+                        }
                     }
                 }
             }
@@ -108,14 +118,16 @@ class MultiSchema implements ConfigurationInterface
         foreach ($insertedNode->getChildNodeDefinitions() as $definition) {
             // if child is an array and array key already exists, we do not want to overwrite all subtree
             // instead we insert its children at existing array level
-            $nodeName = $definition->getNode(true)->getName();
+            $nodeName = $definition->getNode()->getName();
             $nodeType = get_class($definition);
             $child = $this->getChildByName($insertPoint, $nodeName);
             if (null !== $child) {
                 $this->debug("      [$nodeName] EXISTS ALREADY\n");
                 if (get_class($child) !== $nodeType) {
-                    $source = $definition->getNode(true)->getPath()." [".$nodeType."]";
-                    $target = $child->getNode(true)->getPath()." [".get_class($child)."]";
+                    $srcPath = $definition->getNode()->getPath();
+                    $tgtPath = $definition->getNode()->getPath();
+                    $source = "$srcPath [".preg_replace('/.*\\\\/', '', $nodeType)."]";
+                    $target = "$tgtPath [".preg_replace('/.*\\\\/', '', get_class($child))."]";
                     throw new ConfigSchemaException("Type mismatch, can't replace $target with $source");
                 }
                 if ($child instanceof ArrayNodeDefinition) {
@@ -159,7 +171,7 @@ class MultiSchema implements ConfigurationInterface
     private function debug($message)
     {
         if ($this->debug) {
-            print $message;
+            print($message);
         }
     }
 }

@@ -36,6 +36,9 @@ class ConfigHelper extends ConfigOverlay implements ConfigHelperInterface
     public const DUMP_MODE_RAW      = 'raw';
     public const DUMP_MODE_CONTEXTS = 'contexts';
 
+    public const DUMP_INLINE_LEVEL  = 4;
+    public const DUMP_INDENT_SPACES = 2;
+
 
     /** @var MultiSchema $schema */
     protected $schema;
@@ -161,16 +164,19 @@ class ConfigHelper extends ConfigOverlay implements ConfigHelperInterface
      * @param array<string>|string|null $paths      path patterns
      * @param array<string>|string|null $names      file name patterns
      * @param bool                      $sortByName
-     * @param int                       $depth      recurse depth. 0 = norecurse, -1 = no limit
+     * @param int|null                  $depth      recurse depth. 0 = norecurse, -1 = no limit
      *
      * @return void
      */
-    public function findConfigFiles($rootDirs, $paths = null, $names = null, $sortByName = false, $depth = -1)
+    public function findConfigFiles($rootDirs, $paths = null, $names = null, $sortByName = false, $depth = null)
     {
         $finder = new Finder();
         $finder->in($rootDirs);
         if (null !== $paths) {
             $finder->path($paths);
+        }
+        if (null === $depth) {
+            $depth = -1;        // no limit
         }
         if (null === $names) {
             $names = [ '*.yml', '*.yaml' ];
@@ -178,7 +184,7 @@ class ConfigHelper extends ConfigOverlay implements ConfigHelperInterface
         $finder->name($names);
         if (0 === $depth) {
             $finder->depth('== 0');
-        } elseif ($depth > 0) {
+        } elseif (-1 !== $depth) {
             $finder->depth("<= $depth");
         }
         if ($sortByName) {
@@ -219,7 +225,7 @@ class ConfigHelper extends ConfigOverlay implements ConfigHelperInterface
         $loader->load($filename);
 
         $config = new Config();
-        $config->import($loader->export());
+        $config->replace($loader->export());
 
         $this->addContext($name, $config);
         $this->processedConfig = null;
@@ -238,7 +244,7 @@ class ConfigHelper extends ConfigOverlay implements ConfigHelperInterface
         $loader->import($name, $data);
 
         $config = new Config();
-        $config->import($loader->export());
+        $config->replace($loader->export());
 
         $this->addContext($name, $config);
         $this->processedConfig = null;
@@ -262,13 +268,13 @@ class ConfigHelper extends ConfigOverlay implements ConfigHelperInterface
             $expanded = $this->export();
         }
         if (!$this->doCheck) {
-            $this->processedConfig->import($expanded);
+            $this->processedConfig->replace($expanded);
         } else {
             try {
                 $processor = new ConfigProcessor();
-                $this->processedConfig->import($processor->processConfiguration($this->schema, [ $expanded ]));
+                $this->processedConfig->replace($processor->processConfiguration($this->schema, [ $expanded ]));
             } catch (InvalidConfigurationException $e) {
-                $message = "================== CONFIG =====================================\n";
+                $message  = "================== CONFIG =====================================\n";
                 $message .= $this->dumpConfig(self::DUMP_MODE_RAW);
                 $message .= "===============================================================\n";
                 $message .= $e->getMessage();
@@ -283,7 +289,7 @@ class ConfigHelper extends ConfigOverlay implements ConfigHelperInterface
      *
      * @param string $contextName
      *
-     * @return void
+     * @return $this
      */
     public function setActiveContext($contextName)
     {
@@ -291,6 +297,8 @@ class ConfigHelper extends ConfigOverlay implements ConfigHelperInterface
             $this->addPlaceholder($contextName);
         }
         $this->activeContext = $contextName;
+
+        return $this;
     }
     /**
      * set a key value in the currently active context
@@ -298,7 +306,7 @@ class ConfigHelper extends ConfigOverlay implements ConfigHelperInterface
      * @param string $key
      * @param mixed  $value
      *
-     * @return self
+     * @return $this
      */
     public function set($key, $value)
     {
@@ -313,7 +321,7 @@ class ConfigHelper extends ConfigOverlay implements ConfigHelperInterface
      * @param string $key
      * @param mixed  $value
      *
-     * @return self
+     * @return $this
      */
     public function setDefault($key, $value)
     {
@@ -391,8 +399,8 @@ class ConfigHelper extends ConfigOverlay implements ConfigHelperInterface
      */
     public function dumpConfig($mode = self::DUMP_MODE_BUILT)
     {
-        $inline = 4;
-        $indent = 2;
+        $inline = self::DUMP_INLINE_LEVEL;
+        $indent = self::DUMP_INDENT_SPACES;
         $flags = Yaml::DUMP_EMPTY_ARRAY_AS_SEQUENCE|Yaml::DUMP_MULTI_LINE_LITERAL_BLOCK;
         switch ($mode) {
             case (self::DUMP_MODE_BUILT):
@@ -430,7 +438,7 @@ class ConfigHelper extends ConfigOverlay implements ConfigHelperInterface
      *
      * @return void
      */
-    protected function debug($message, $context = [])
+    private function debug($message, $context = [])
     {
         if (null === $this->logger) {
             if ($this->debug) {
@@ -445,7 +453,7 @@ class ConfigHelper extends ConfigOverlay implements ConfigHelperInterface
      *
      * @return array<string>
      */
-    protected function getContextNames()
+    private function getContextNames()
     {
         return array_keys($this->contexts);
     }
@@ -455,7 +463,7 @@ class ConfigHelper extends ConfigOverlay implements ConfigHelperInterface
      *
      * @return int
      */
-    protected function cmpConfigPaths(\SplFileInfo $a, \SplFileInfo $b)
+    private function cmpConfigPaths(\SplFileInfo $a, \SplFileInfo $b)
     {
         $pharPrefix = 'phar://';
         $pharLen = strlen($pharPrefix);

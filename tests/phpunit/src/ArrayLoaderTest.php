@@ -24,10 +24,17 @@ class ArrayLoaderTest extends TestCase
     public function testImport(): void
     {
         $loader = new ArrayLoader();
+
+        $ref = new \ReflectionClass(ArrayLoader::class);
+        $src = $ref->getProperty('source');
+        $src->setAccessible(true);
+
         $dataIn  = [ 'foo' => 'bar', 'subtree.bar' => 100, 'subtree.baz' => 'another_value'];
         $dataOut = [ 'foo' => 'bar', 'subtree' => [ 'bar' => 100, 'baz' => 'another_value']];
-        $this->assertEquals($dataOut, $loader->import('values', $dataIn)->export());
-        $this->assertEquals($dataIn, $loader->import('values', $dataIn, false)->export());
+        self::assertEquals($dataOut, $loader->import('values', $dataIn)->export());
+        self::assertEquals($dataIn, $loader->import('values', $dataIn, false)->export());
+
+        self::assertEquals('values', $src->getValue($loader));
     }
     /**
      * test addFile method
@@ -44,6 +51,6 @@ class ArrayLoaderTest extends TestCase
         } catch (\Exception $e) {
             $msg = $e->getMessage();
         }
-        $this->assertEquals("The method 'load' is not supported for the ArrayLoader class.", $msg);
+        self::assertEquals("The method 'load' is not supported for the ArrayLoader class.", $msg);
     }
 }

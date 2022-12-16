@@ -1,12 +1,7 @@
 parameters:
   level: 9
-  tmpDir: ./tests/tmp
+  tmpDir: ./tests/tmp/phpstan
   paths:
     - src
     - tests/phpunit/src
-  ignoreErrors:
-    -
-      message: '#Call to an undefined method .*(children|addDefaultsIfNotSet|arrayPrototype)#'
-      paths: 
-        - tests/phpunit/src/*
 

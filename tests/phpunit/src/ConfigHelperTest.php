@@ -17,11 +17,10 @@ use DgfipSI1\ConfigHelperTests\Schemas\Schema2;
 use DgfipSI1\ConfigHelperTests\Schemas\Schema3;
 use DgfipSI1\ConfigHelperTests\Schemas\SubBranchOverwrite;
 use DgfipSI1\ConfigHelperTests\Schemas\TypeMismatch;
+use DgfipSI1\ConfigHelperTests\Schemas\TypeMismatch2;
 use DgfipSI1\ConfigHelperTests\Schemas\UnnamedSchema;
-use DgfipSI1\ConfigHelperTests\TestSchema;
 use DgfipSI1\testLogger\LogTestCase;
 use DgfipSI1\testLogger\TestLogger;
-use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
 
@@ -40,12 +39,12 @@ class ConfigurationHelperTest extends LogTestCase
     public function testConstructor(): void
     {
         $conf = new ConfigHelper(new Schema1());
-        $this->assertEquals(Schema1::DUMP, $conf->dumpSchema());
+        self::assertEquals(Schema1::DUMP, $conf->dumpSchema());
 
         $class = new ReflectionClass(ConfigHelper::class);
         $dc = $class->getProperty('doCheck');
         $dc->setAccessible(true);
-        $this->assertTrue($dc->getValue($conf));
+        self::assertTrue($dc->getValue($conf));
 
         $msg = '';
         try {
@@ -53,10 +52,10 @@ class ConfigurationHelperTest extends LogTestCase
         } catch (\Exception $e) {
             $msg = $e->getMessage();
         }
-        $this->assertEquals("Schema allready set, use 'addSchema' for multischema functionalities", $msg);
+        self::assertEquals("Schema allready set, use 'addSchema' for multischema functionalities", $msg);
 
         $conf = new ConfigHelper();
-        $this->assertFalse($dc->getValue($conf));
+        self::assertFalse($dc->getValue($conf));
     }
     /**
      * @covers DgfipSI1\ConfigHelper\ConfigHelper::addSchema
@@ -79,28 +78,28 @@ class ConfigurationHelperTest extends LogTestCase
         /** @var MultiSchema  $schemaObject */
         $schemaList = $schemas->getValue($schemaObject);
         /** @var array<ConfigurationInterface> $schemaList */
-        $this->assertEquals([], array_keys($schemaList));
+        self::assertEquals([], array_keys($schemaList));
 
         $conf->addSchema(new Schema1());
         $expectedDump = Schema1::DUMP;
-        $this->assertEquals($expectedDump, $conf->dumpSchema());
+        self::assertEquals($expectedDump, $conf->dumpSchema());
 
         $conf->addSchema(new UnnamedSchema());
         $expectedDump .= UnnamedSchema::DUMP;
         //print $conf->dumpSchema();
-        $this->assertEquals($expectedDump, $conf->dumpSchema());
+        self::assertEquals($expectedDump, $conf->dumpSchema());
 
         $conf->addSchema(new Schema2());
         $expectedDump .= Schema2::DUMP;
-        $this->assertEquals($expectedDump, $conf->dumpSchema());
+        self::assertEquals($expectedDump, $conf->dumpSchema());
 
         $conf->addSchema(new SubBranchOverwrite());
         $expectedDump .= SubBranchOverwrite::DUMP;
-        $this->assertEquals($expectedDump, $conf->dumpSchema());
+        self::assertEquals($expectedDump, $conf->dumpSchema());
 
         $conf->addSchema(new Schema3());
         $expectedDump .= Schema3::DUMP;
-        $this->assertEquals($expectedDump, $conf->dumpSchema());
+        self::assertEquals($expectedDump, $conf->dumpSchema());
 
         $conf->addSchema(new TypeMismatch());
         $msg = '';
@@ -109,7 +108,20 @@ class ConfigurationHelperTest extends LogTestCase
         } catch (\Exception $e) {
             $msg = $e->getMessage();
         }
-        $this->assertMatchesRegularExpression('/Type mismatch, can\'t replace/', $msg);
+        $preg = '/Type mismatch.*\[ArrayNodeDefinition\].*\[BooleanNodeDefinition\]/';
+        self::assertMatchesRegularExpression($preg, $msg);
+
+        $conf = new ConfigHelper();
+        $conf->addSchema(new Schema1());
+        $conf->addSchema(new TypeMismatch2());
+        $msg = '';
+        try {
+            $conf->build();
+        } catch (\Exception $e) {
+            $msg = $e->getMessage();
+        }
+        $preg = '/Type mismatch.*\[ScalarNodeDefinition\].*\[ArrayNodeDefinition\]/';
+        self::assertMatchesRegularExpression($preg, $msg);
     }
     /**
      * test addFile method
@@ -123,29 +135,29 @@ class ConfigurationHelperTest extends LogTestCase
         $content = str_replace("---\n", '', "".file_get_contents($file));
         $conf = new ConfigHelper(new Schema1());
         $conf->addFile($file);
-        $this->assertTrue($conf->hasContext('testConfig'));
-        $this->assertEquals($content, $conf->dumpConfig());
+        self::assertTrue($conf->hasContext('testConfig'));
+        self::assertEquals($content, $conf->dumpConfig());
         $banner  = "============================================================\n";
         $banner .= "         CONTEXT : %s\n";
         $banner .= "============================================================\n";
         $dump = sprintf("$banner".'[]'."\n$banner", 'default', 'testConfig');
         $dump .= str_replace("---\n", '', "".file_get_contents($file));
         $dump .= sprintf("\n$banner".'[]'."\n", 'process');
-        $this->assertEquals($dump, $conf->dumpConfig(ConfigHelper::DUMP_MODE_CONTEXTS));
+        self::assertEquals($dump, $conf->dumpConfig(ConfigHelper::DUMP_MODE_CONTEXTS));
 
         $conf->addFile($file);
         $dump  = sprintf("$banner", 'default')."[]\n";
         $dump .= sprintf("$banner", 'testConfig').str_replace("---\n", '', "".file_get_contents($file))."\n";
         $dump .= sprintf("$banner", 'testConfig-02').str_replace("---\n", '', "".file_get_contents($file))."\n";
         $dump .= sprintf("$banner", 'process')."[]\n";
-        $this->assertEquals($dump, $conf->dumpConfig(ConfigHelper::DUMP_MODE_CONTEXTS));
+        self::assertEquals($dump, $conf->dumpConfig(ConfigHelper::DUMP_MODE_CONTEXTS));
         $msg = '';
         try {
             $conf->dumpConfig('foo');
         } catch (RuntimeException $e) {
             $msg = $e->getMessage();
         }
-        $this->assertEquals("Unknown dump mode 'foo'", $msg);
+        self::assertEquals("Unknown dump mode 'foo'", $msg);
     }
     /**
      * test addArray method
@@ -158,13 +170,14 @@ class ConfigurationHelperTest extends LogTestCase
     {
         $file = __DIR__."/../data/testConfig.yaml";
         $content = str_replace("---\n", '', ''.file_get_contents($file));
+        $data = [];
         $data['true_or_false']    = true;
         $data['positive_number']  = 50;
         $data['this_is_a_string'] = "foo";
         $conf = new ConfigHelper(new Schema1());
         $conf->addArray('values', $data);
-        $this->assertTrue($conf->hasContext('values'));
-        $this->assertEquals($content, $conf->dumpConfig());
+        self::assertTrue($conf->hasContext('values'));
+        self::assertEquals($content, $conf->dumpConfig());
     }
     /**
      * test addFoundFiles method
@@ -190,64 +203,64 @@ class ConfigurationHelperTest extends LogTestCase
         // test with all files in default order
         $conf->findConfigFiles($dataRoot, ['config'], [ '*.yaml', '*.yml']);
         $contexts = [ '00-baseConfig', '01-testConfig', '03-testConfig', '00-baseConfig-02', '02-testConfig'];
-        $this->assertEquals($contexts, $this->getAddedContexts($conf));
-        $this->assertEquals(false, $conf->get('true_or_false'));
-        $this->assertEquals("02-testConfig.yaml", $conf->get('this_is_a_string'));
-        $this->assertEquals(2, $conf->get('positive_number'));
+        self::assertEquals($contexts, $this->getAddedContexts($conf));
+        self::assertEquals(false, $conf->get('true_or_false'));
+        self::assertEquals("02-testConfig.yaml", $conf->get('this_is_a_string'));
+        self::assertEquals(2, $conf->get('positive_number'));
 
         // test with all files filename order
         $conf = new ConfigHelper(new Schema1());
         $conf->findConfigFiles($dataRoot, ['config'], [ '*.yaml', '*.yml'], true);
         $contexts = [ '00-baseConfig', '00-baseConfig-02', '01-testConfig', '02-testConfig', '03-testConfig'];
-        $this->assertEquals($contexts, $this->getAddedContexts($conf));
-        $this->assertEquals(false, $conf->get('true_or_false'));
-        $this->assertEquals("03-testConfig.yaml", $conf->get('this_is_a_string'));
-        $this->assertEquals(3, $conf->get('positive_number'));
+        self::assertEquals($contexts, $this->getAddedContexts($conf));
+        self::assertEquals(false, $conf->get('true_or_false'));
+        self::assertEquals("03-testConfig.yaml", $conf->get('this_is_a_string'));
+        self::assertEquals(3, $conf->get('positive_number'));
 
         // test with config01 directory only
         $conf = new ConfigHelper(new Schema1());
         $conf->findConfigFiles($dataRoot, ['config01'], [ '*.yaml', '*.yml']);
         $contexts = [ '00-baseConfig', '01-testConfig', '03-testConfig'];
-        $this->assertEquals($contexts, $this->getAddedContexts($conf));
-        $this->assertEquals(true, $conf->get('true_or_false'));
-        $this->assertEquals("03-testConfig.yaml", $conf->get('this_is_a_string'));
-        $this->assertEquals(3, $conf->get('positive_number'));
+        self::assertEquals($contexts, $this->getAddedContexts($conf));
+        self::assertEquals(true, $conf->get('true_or_false'));
+        self::assertEquals("03-testConfig.yaml", $conf->get('this_is_a_string'));
+        self::assertEquals(3, $conf->get('positive_number'));
 
         // test with yaml files only
         $conf = new ConfigHelper(new Schema1());
         $conf->findConfigFiles($dataRoot, ['config'], [ '*.yaml'], true);
         $contexts = [ '01-testConfig', '02-testConfig', '03-testConfig'];
-        $this->assertEquals($contexts, $this->getAddedContexts($conf));
-        $this->assertEquals(false, $conf->get('true_or_false'));
-        $this->assertEquals("03-testConfig.yaml", $conf->get('this_is_a_string'));
-        $this->assertEquals(3, $conf->get('positive_number'));
+        self::assertEquals($contexts, $this->getAddedContexts($conf));
+        self::assertEquals(false, $conf->get('true_or_false'));
+        self::assertEquals("03-testConfig.yaml", $conf->get('this_is_a_string'));
+        self::assertEquals(3, $conf->get('positive_number'));
 
         // test without file or path filters
         $conf = new ConfigHelper(new Schema1());
         $conf->findConfigFiles($dataRoot.DIRECTORY_SEPARATOR.'tests');
         $contexts = [ '00-baseConfig', '01-testConfig', '03-testConfig', '00-baseConfig-02', '02-testConfig'];
-        $this->assertEquals($contexts, $this->getAddedContexts($conf));
-        $this->assertEquals(false, $conf->get('true_or_false'));
-        $this->assertEquals("02-testConfig.yaml", $conf->get('this_is_a_string'));
-        $this->assertEquals(2, $conf->get('positive_number'));
+        self::assertEquals($contexts, $this->getAddedContexts($conf));
+        self::assertEquals(false, $conf->get('true_or_false'));
+        self::assertEquals("02-testConfig.yaml", $conf->get('this_is_a_string'));
+        self::assertEquals(2, $conf->get('positive_number'));
 
         // test with no depth
         $conf = new ConfigHelper(new Schema1());
         $conf->findConfigFiles($dataRoot, depth: 0);
         $contexts = [ 'testConfig'];
-        $this->assertEquals($contexts, $this->getAddedContexts($conf));
-        $this->assertEquals(true, $conf->get('true_or_false'));
-        $this->assertEquals("foo", $conf->get('this_is_a_string'));
-        $this->assertEquals(50, $conf->get('positive_number'));
+        self::assertEquals($contexts, $this->getAddedContexts($conf));
+        self::assertEquals(true, $conf->get('true_or_false'));
+        self::assertEquals("foo", $conf->get('this_is_a_string'));
+        self::assertEquals(50, $conf->get('positive_number'));
 
         // test with depth = 1
         $conf = new ConfigHelper(new Schema1());
         $conf->findConfigFiles($dataRoot, depth: 1);
         $contexts = [ 'testConfig'];
-        $this->assertEquals($contexts, $this->getAddedContexts($conf));
-        $this->assertEquals(true, $conf->get('true_or_false'));
-        $this->assertEquals("foo", $conf->get('this_is_a_string'));
-        $this->assertEquals(50, $conf->get('positive_number'));
+        self::assertEquals($contexts, $this->getAddedContexts($conf));
+        self::assertEquals(true, $conf->get('true_or_false'));
+        self::assertEquals("foo", $conf->get('this_is_a_string'));
+        self::assertEquals(50, $conf->get('positive_number'));
     }
     /**
      * get all contextes but default ones
@@ -290,6 +303,7 @@ class ConfigurationHelperTest extends LogTestCase
         //
         // test with bad config and check, bad config and no check
         //
+        $data = [];
         $data['true_or_false']    = 'foo';
         $conf = new ConfigHelper(new Schema1());
         $conf->addArray('values', $data);
@@ -299,13 +313,14 @@ class ConfigurationHelperTest extends LogTestCase
         } catch (\Exception $e) {
             $msg = $e->getMessage();
         }
-        $this->assertMatchesRegularExpression('/Expected "bool", but got "string"/', $msg);
+        $regexp = "/=* CONFIG =*true_or_false.*=*Expected .bool/";
+        self::assertMatchesRegularExpression($regexp, str_replace("\n", "", $msg));
         // now with NO_CHECK, build should not throw exception
-        $conf->setCheckOption(false);
+        self::assertEquals($conf, $conf->setCheckOption(false));
         $conf->build();
         /** @var \Consolidation\Config\ConfigInterface $pc */
         $pc = $processedConfig->getValue($conf);
-        $this->assertEquals('foo', $pc->get('true_or_false'));
+        self::assertEquals('foo', $pc->get('true_or_false'));
         //
         // test with expansion and without
         //
@@ -315,16 +330,16 @@ class ConfigurationHelperTest extends LogTestCase
         // test dump and dumpRaw
         $dump = "this_is_a_string: foobar\nanother_string: bar\n";
         $dumpRaw = "this_is_a_string: 'foo\${another_string}'\nanother_string: bar\n";
-        $this->assertEquals($dump, $conf->dumpConfig());
-        $this->assertEquals($dumpRaw, $conf->dumpConfig(ConfigHelper::DUMP_MODE_RAW));
+        self::assertEquals($dump, $conf->dumpConfig());
+        self::assertEquals($dumpRaw, $conf->dumpConfig(ConfigHelper::DUMP_MODE_RAW));
         /** @var \Consolidation\Config\ConfigInterface $pc */
         $pc = $processedConfig->getValue($conf);
-        $this->assertEquals('foobar', $pc->get('this_is_a_string'));
-        $conf->setExpandOption(false);
+        self::assertEquals('foobar', $pc->get('this_is_a_string'));
+        self::assertEquals($conf, $conf->setExpandOption(false));
         $conf->build();
         /** @var \Consolidation\Config\ConfigInterface $pc */
         $pc = $processedConfig->getValue($conf);
-        $this->assertEquals('foo${another_string}', $pc->get('this_is_a_string'));
+        self::assertEquals('foo${another_string}', $pc->get('this_is_a_string'));
     }
     /**
      * test setActiveContext method
@@ -338,8 +353,8 @@ class ConfigurationHelperTest extends LogTestCase
         $activeContext->setAccessible(true);
         $conf = new ConfigHelper(new Schema1());
         $conf->setActiveContext('custom');
-        $this->assertTrue($conf->hasContext('custom'));
-        $this->assertEquals('custom', $activeContext->getValue($conf));
+        self::assertTrue($conf->hasContext('custom'));
+        self::assertEquals('custom', $activeContext->getValue($conf));
     }
     /**
      * test set method
@@ -353,21 +368,21 @@ class ConfigurationHelperTest extends LogTestCase
     public function testSetAndGet(): void
     {
         $conf = new ConfigHelper(new Schema1());
-        $conf->setActiveContext('custom');
-        $conf->set('this_is_a_string', 'foo${another_string}');
-        $this->assertEquals('foo${another_string}', $conf->getContext('custom')->get('this_is_a_string'));
-        $this->assertEquals('foo${another_string}', $conf->get('this_is_a_string'));
+        self::assertEquals($conf, $conf->setActiveContext('custom'));
+        self::assertEquals($conf, $conf->set('this_is_a_string', 'foo${another_string}'));
+        self::assertEquals('foo${another_string}', $conf->getContext('custom')->get('this_is_a_string'));
+        self::assertEquals('foo${another_string}', $conf->get('this_is_a_string'));
 
         /** check that setDefault invalidates cache */
-        $conf->setDefault('another_string', 'bar');
-        $this->assertEquals('foobar', $conf->get('this_is_a_string'));
-        $this->assertEquals('foo${another_string}', $conf->getRaw('this_is_a_string'));
+        self::assertEquals($conf, $conf->setDefault('another_string', 'bar'));
+        self::assertEquals('foobar', $conf->get('this_is_a_string'));
+        self::assertEquals('foo${another_string}', $conf->getRaw('this_is_a_string'));
 
-        $this->assertEquals('bar', $conf->get('another_string'));
-        $this->assertEquals('foobar', $conf->get('this_is_a_string'));
-        $conf->contextSet('new_context', 'another_string', '_new_bar');
-        $this->assertEquals('foo_new_bar', $conf->get('this_is_a_string'));
-        $this->assertEquals('_new_bar', $conf->getContext('new_context')->get('another_string'));
+        self::assertEquals('bar', $conf->get('another_string'));
+        self::assertEquals('foobar', $conf->get('this_is_a_string'));
+        self::assertEquals($conf, $conf->contextSet('new_context', 'another_string', '_new_bar'));
+        self::assertEquals('foo_new_bar', $conf->get('this_is_a_string'));
+        self::assertEquals('_new_bar', $conf->getContext('new_context')->get('another_string'));
     }
     /**  */
     /**
@@ -385,7 +400,7 @@ class ConfigurationHelperTest extends LogTestCase
         $conf = new ConfigHelper();
         $conf->addArray('middle-context', []);
         $expect = [ConfigHelper::DEFAULT_CONTEXT, 'middle-context', ConfigHelper::PROCESS_CONTEXT ];
-        $this->assertEquals($expect, $method->invoke($conf));
+        self::assertEquals($expect, $method->invoke($conf));
     }
     /**  */
     /**
@@ -449,6 +464,7 @@ class ConfigurationHelperTest extends LogTestCase
         $fileB = new \SplFileInfo($schemaDir.'Schema2.php');
         $pharA = new \SplFileInfo('phar://'.$schemaDir.'Schema1.php');
         $pharB = new \SplFileInfo('phar://'.$schemaDir.'Schema2.php');
+        $data = [];
         $data['FA_FA'] = [ $fileA, $fileA,   0];
         $data['FA_FB'] = [ $fileA, $fileB,  -1];
         $data['FB_FA'] = [ $fileB, $fileA,   1];
@@ -479,6 +495,6 @@ class ConfigurationHelperTest extends LogTestCase
         $method->setAccessible(true);
         //print "\n".$a->getPathname()." <=> ".$a->getRealPath()."\n";
         $cfg = new ConfigHelper();
-        $this->assertEquals($expected, $method->invokeArgs($cfg, [$a, $b]), $a->getPathname().'<=>'.$b->getPathname());
+        self::assertEquals($expected, $method->invokeArgs($cfg, [$a, $b]), $a->getPathname().'<=>'.$b->getPathname());
     }
 }
