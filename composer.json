@@ -63,6 +63,9 @@
       "dealerdirect/phpcodesniffer-composer-installer": true,
       "phpro/grumphp-shim": true,
       "phpstan/extension-installer": true
+    },
+    "platform": {
+      "php": "8.1"
     }
   },
   "scripts": {
