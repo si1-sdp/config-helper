@@ -22,7 +22,7 @@ jobs:
           coverage: xdebug
       - run: composer update --${{ matrix.stability }} --prefer-dist --no-interaction
       - run: composer run phpunit
-      - uses: actions/phpunit-coverage-badge
+      - uses:  timkrase/phpunit-coverage-badge
         with:
           push_badge: true
           repo_token: ${{ secrets.GITHUB_TOKEN }}
