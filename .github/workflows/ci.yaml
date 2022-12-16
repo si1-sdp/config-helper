@@ -26,3 +26,5 @@ jobs:
         with:
           push_badge: true
           repo_token: ${{ secrets.GITHUB_TOKEN }}
+          report: tests/results/coverage.xml
+          coverage_badge_path: tests/results
