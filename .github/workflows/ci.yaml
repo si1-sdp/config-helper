@@ -21,8 +21,8 @@ jobs:
           extensions: mbstring
           coverage: xdebug
       - run: composer update --${{ matrix.stability }} --prefer-dist --no-interaction
-      - run: composer run phpunit@v1.2.0
-      - uses:  timkrase/phpunit-coverage-badge
+      - run: composer run phpunit
+      - uses: timkrase/phpunit-coverage-badge@v1.2.0
         with:
           push_badge: true
           repo_token: ${{ secrets.GITHUB_TOKEN }}
