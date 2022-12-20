@@ -325,10 +325,9 @@ class ConfigHelper extends ConfigOverlay implements ConfigHelperInterface
      */
     public function setDefault($key, $value)
     {
-        parent::setDefault($key, $value);
         $this->processedConfig = null;
 
-        return $this;
+        return parent::setDefault($key, $value);
     }
     /**
      * set a key value in the given context
@@ -348,6 +347,17 @@ class ConfigHelper extends ConfigOverlay implements ConfigHelperInterface
         $this->processedConfig = null;
 
         return $this;
+    }
+    /**
+     * @param string $name
+     *
+     * @return self
+     */
+    public function removeContext($name)
+    {
+        $this->processedConfig = null;
+
+        return parent::removeContext($name);
     }
     /**
      * gets the value of the given key

@@ -342,11 +342,12 @@ class ConfigurationHelperTest extends LogTestCase
         self::assertEquals('foo${another_string}', $pc->get('this_is_a_string'));
     }
     /**
-     * test setActiveContext method
+     * test setActiveAndRemoveContext method
      *
      * @covers DgfipSI1\ConfigHelper\ConfigHelper::setActiveContext
+     * @covers DgfipSI1\ConfigHelper\ConfigHelper::removeContext
      */
-    public function testSetActiveContext(): void
+    public function testSetActiveAndRemoveContext(): void
     {
         $class = new ReflectionClass('DgfipSI1\ConfigHelper\ConfigHelper');
         $activeContext = $class->getProperty('activeContext');
@@ -355,6 +356,15 @@ class ConfigurationHelperTest extends LogTestCase
         $conf->setActiveContext('custom');
         self::assertTrue($conf->hasContext('custom'));
         self::assertEquals('custom', $activeContext->getValue($conf));
+        $conf->build();
+        $processedConfig = $class->getProperty('processedConfig');
+        $processedConfig->setAccessible(true);
+        $pc = $processedConfig->getValue($conf);
+        self::assertNotNull($pc);
+        $conf->removeContext('custom');
+        self::assertFalse($conf->hasContext('custom'));
+        $pc = $processedConfig->getValue($conf);
+        self::assertNull($pc);
     }
     /**
      * test set method
